@@ -1,8 +1,4 @@
 #include "Unpacker.h"
-//#include "Common.h"
-//#include "DutClass.h"
-
-
 #include <bitset>
 #include <fstream>
 #include <iostream>
@@ -79,7 +75,6 @@ void Unpacker::Process(DataSource & my_src_data){
     // 2== PAUSE
     if(GetInfoCode()==2){
       tm_stp_msb= GetInfoField();
-      //if(!GetBSyncStatus()) SetBSyncStatus(true); //data is synchronized!
     }
 
     // 3== RESUME
@@ -92,8 +87,6 @@ void Unpacker::Process(DataSource & my_src_data){
     if(GetInfoCode()==4){
       tm_stp_msb= GetInfoField();
       if(!GetBSyncStatus()) SetBSyncStatus(true); //data is synchronized!
-
-      //  SetBPushData(true);
     }
 
     // 6==DISC data
@@ -126,14 +119,12 @@ void Unpacker::Process(DataSource & my_src_data){
 	  //updates state of b_corr_status, if we have already received SYN100 pulses
 	  //also updates value of corr_scaler_offset
 	  SetCorrScaler(scaler);
-	  //	  SetBCorrStatus(true);
 	  SetBPushData(true);
 	}
       }
     }
 
     SetBFillTree(true); //Fill TTree for all Info Data Codes
-    // SetPushData(true); !!only push data for selected info types: now DISC and CORR SCALAR
   }
   //Sample trace: Sample Lenght
   else if(GetDataType() == 1){
@@ -150,10 +141,6 @@ void Unpacker::Process(DataSource & my_src_data){
 
     my_long = word_1 & 0x0FFFFFFF;  //bits 0:27
     SetTmStpLsb(my_long);
-
-    //these are default values
-    // SetBFillTree(false);
-    //    SetBPushData(false);
   }
 
   //Sample trace: Waveform data
@@ -163,10 +150,6 @@ void Unpacker::Process(DataSource & my_src_data){
 
     my_int=  (word_0 >> 16) & 0x00003FFF;    //sample n
     SetSampleLength(my_int);
-
-    //these are default values
-    //    SetBFillTree(false);
-    //    SetBPushData(false); //not being processed for now.
   }
   else{
     //output error message!
@@ -184,10 +167,9 @@ void Unpacker::Process(DataSource & my_src_data){
   // If an interesting data type, Fill TTree with this entry 
   if(GetBRootTree() && GetBFillTree()) out_root_tree->Fill();
     
-  if(GetBHistograms()) FillHistograms();
+  //FS  if(GetBHistograms()) FillHistograms();
  
-
-
+  /******** FS ********
   if(b_debug){
     if(my_src_data.GetItrData()<65){ //for first few entries in block output to screen
       printf("db      Unp:: DataType= %i, NNAIDA%i, tm-stp(lsb)= %lu, ",GetDataType(),GetFee64Id(),GetTmStpLsb());
@@ -198,7 +180,7 @@ void Unpacker::Process(DataSource & my_src_data){
       printf("db      Unp:: NNAIDA3: ch= %i, adc= %u\n",GetChId(),GetAdcData());
     }
   }
-
+  *****************/
 }
 
 

@@ -1,4 +1,5 @@
 //http://www-numi.fnal.gov/offline_software/srt_public_context/WebDocs/Companion/cxx_crib/objects.html
+//oct13, 16: moving to AIDA FastSort
 
 // My code include.
 #include "DataSource.h"
@@ -11,23 +12,21 @@
 #include <TCanvas.h>
 #include <TH1I.h>
 #include <TROOT.h>
-///gr #include <TGraph.h>
 
 // C++ include.
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
-//#include <vector>
-//#include <sstream>
+
 
 #include<signal.h>
 #include"TSystem.h"
 #include "kbhit.h"
-////#include "MySignalHandler.cc"
 #include <TSysEvtHandler.h>
-//#include <TSignalHandler.h>
-//#include <TSignalHandler.h>
+
+
+
 
 void Usage(char *progname) {
     fprintf(stderr,"This will at some point become a useage instruction...");
@@ -71,7 +70,7 @@ int main  (int argc, char **argv){
 
   bool b_Xfer= false;
 
-  std::string DataDir= "/scratch/cgriffin/NP1306/data/";//"/Disk/ds-sopa-group/np/RIKEN/May2015/"; 
+  std::string DataDir= "/Disk/ds-sopa-group/np/RIKEN/May2015/"; 
 
   bool b_root_file= false;
 
@@ -175,18 +174,38 @@ int main  (int argc, char **argv){
 
 
 
-
-  std::cout << "AIDA be like: lets BRIKEN!!" << std::endl;
+  std::cout << "AIDA be like: BRIKEN time!!" << std::endl;
 
   std::string FileNameData="";
 
-  char *FileCalibParameters= (char*)"config/parameters_NP1306_R1300.txt";
+  char *FileCalibParameters= (char*)"config/parameters.txt";
 
+
+
+  /****************** FS: will need a binary output file ******/
+  /******************** or do we want option of Root for debugging ***/
+  std::string FileNameRoot=""; //= "aida_sort_" + RunName +".root";
+  TFile * fMain; //= new TFile(FileNameRoot.data(),"RECREATE");
 
   char RLname[64];
 
-  unsigned long n_entry=0;
-  unsigned long n_update= 100000000;
+  //open Root output file (TTrees, histograms, etc...)
+  if(b_root_file){
+    if(source_option==2){
+      FileNameRoot= "aida_sort_online.root";
+    }
+    else if(RLrun>0){
+      sprintf(RLname,"R%d_list",RLrun);
+      FileNameRoot= "aida_sort_"+ std::string(RLname) +".root";
+    }
+    else FileNameRoot= "aida_sort_" + RunName +".root";
+    fMain= new TFile(FileNameRoot.data(),"RECREATE");
+  }
+  /********************************************************/
+
+
+  //  unsigned long n_entry=0;
+  //  unsigned long n_update= 100000000;
 
   std::cout << " declaring my class objects"<<std::endl;
   DataSource midas_data;
@@ -196,15 +215,6 @@ int main  (int argc, char **argv){
   Analysis analysis_data;
 
 
-
-  ///gr  double grX[10000]={0};
-  ///gr  double grY[10000]={0};
-  ///gr  int grN=0;
-  ///gr  TGraph * grTS= new TGraph(1,grX,grY);
-  ///gr  grTS->SetMarkerStyle(2);
-  ///gr  grTS->SetTitle(";ts_{AIDA} [1/1e6];ts_{CORR. SCALER} [1/1e6]");
-  ///gr  TCanvas * cTS= new TCanvas("cTS","cTS",130,130,800,600);
-  ///gr  cTS->cd(); grTS->Draw("AP"); cTS->Update();
 
   std::cout << " initializing things"<<std::endl;
 
@@ -245,7 +255,7 @@ int main  (int argc, char **argv){
     if(source_option==1){
       
       if(RLrun>0){ //if looping over a list of runs
-	sprintf(RLname,"R%d_%d",RLrun,RLfirst+Nloop);    //*********Change here for AIDA/R run prefixes******************//
+	sprintf(RLname,"R%d_%d",RLrun,RLfirst+Nloop);
 	FileNameData= DataDir + std::string(RLname);
       }
       else FileNameData= DataDir+RunName;
@@ -264,6 +274,7 @@ int main  (int argc, char **argv){
       for(;;){
 	
 	//to pause loop and take a moment to reflect on the beauty of our planet and histograms 
+	/************
 	if(kbhit()==1){
 	  int if_continue;
 	  std::cout<<"online monitor is paused;"<<std::endl;
@@ -281,7 +292,7 @@ int main  (int argc, char **argv){
 	    choose=(char*)"clear";
 	  }
 	  
-	  std::cout<<"You chose "<<choose /*<<", please press ctrl+c to continue;"*/<<std::endl;
+	  std::cout<<"You chose "<<choose <<std::endl;
 	  
 	  if(if_continue == 0){
 	    char my_ch;
@@ -300,9 +311,6 @@ int main  (int argc, char **argv){
 	    analysis_data.UpdateHistograms();
 	    std::cout<<"monitor restarted, press <Space> to pause;"<<std::endl;
 
-  	    ///gr cTS->cd();  cTS->Clear();
-  	    ///gr grTS->DrawGraph(grN,grX,grY,"AP");
-  	    ///gr cTS->Update();
 	  }
 	  if(if_continue==2){
 	    unpacker_data.ResetHistograms();
@@ -311,8 +319,7 @@ int main  (int argc, char **argv){
 	    std::cout<<"monitor reset, press <Space> to pause;"<<std::endl;
 	  }
 	}//end of statement controling keyboard halt of excecution: if(kbhit()==1)
-	
-	
+	**********************************/
 	
 	midas_data.Process();
 	
@@ -326,17 +333,8 @@ int main  (int argc, char **argv){
 	      analysis_data.Process(midas_data, calibrator_data);
 	    }
 
-  	    ///gr if(grN<10000){
-  	    ///gr   if(unpacker_data.GetInfoCode()==8 && unpacker_data.GetDataType()==2){
-  	    ///gr    if(unpacker_data.GetFee64Id()==14){
-  	    ///gr      grY[grN]= unpacker_data.GetCorrScaler()/1.e6;
-  	    ///gr      grX[grN]= unpacker_data.GetTmStp()/1.e6; 
-  	    ///gr      if( ((grN+1)%250) ==0 ) std::cout << grN+1 << ": "<< grX[grN] << std::endl;
-  	    ///gr      grN++;
-  	    ///gr    }
-  	    ///gr   }
-  	    ///gr  }
 
+	    /************
 	    n_entry++;
 	    
 	    if( (n_entry%n_update)==0 ){
@@ -344,15 +342,12 @@ int main  (int argc, char **argv){
 	      unpacker_data.UpdateHistograms();
 	      calibrator_data.UpdateHistograms();
 	      analysis_data.UpdateHistograms();
-
-  	    ///gr  cTS->cd(); cTS->Clear();
-  	    ///gr  grTS->DrawGraph(grN,grX,grY,"AP");
-  	    ///gr  cTS->Update();
 	    }
+	    ***************/
 	  }
 	}
 	
-	//how to break from online?
+	//how to break from online? -> Ctr+C?
 	if(midas_data.GetBEndOfData()){
 	  std::cout << "\n\n ---- Reached end of input file --- " << std::endl;
 	  break;
@@ -369,7 +364,7 @@ int main  (int argc, char **argv){
     
     std::cout << "\n   + SAVING HISTOGRAMS AND ROOT TREES TO FILE: " <<FileNameRoot<<std::endl;
     
-    ///gr   cTS->Write();
+
     unpacker_data.Close();
     calibrator_data.Close();
     analysis_data.Close();
@@ -377,10 +372,9 @@ int main  (int argc, char **argv){
     fMain->Close();
   }
   
-  rootapp->Terminate();
-  rootapp->Run();
-
-  std::cout << "\n ++++ And this happens after exiting from rootapp ++++"<<std::endl;
+  //  rootapp->Terminate();
+  // rootapp->Run();
+  //  std::cout << "\n ++++ And this happens after exiting from rootapp ++++"<<std::endl;
 
   return 0;
 }
