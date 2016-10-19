@@ -1,8 +1,4 @@
 #include "Calibrator.h"
-//#include "Common.h"
-//#include "DutClass.h"
-
-
 #include <bitset>
 #include <fstream>
 #include <iostream>
@@ -35,15 +31,11 @@ void Calibrator::Process(Unpacker & my_unp_data){
     
     SetBValidCh( true ); //not used! can be commented out ...
     SetBEnabled( b_ch_enabled[GetModule()][GetChannel()] );
-    //      if( !b_ch_enabled[GetModule()][GetChannel()]) return;
     
   }
   else return; //now ensure it will be valid, no need to check again in each step....?
 
   SetDataType( my_unp_data.GetDataType() );
-
-  //  SetCorrFlag(my_unp_data.GetCorrFlag());
-  //  SetSyncFlag(my_unp_data.GetSyncFlag());
 
 
   //------------------------------------------------------------------
@@ -55,23 +47,16 @@ void Calibrator::Process(Unpacker & my_unp_data){
 
     if(my_unp_data.GetInfoCode()==6){ //FAST DISCRIMINATOR hit
       
-      // if(my_unp_data.GetSyncFlag()) ---> we only push data from unpacker if SYNC100 pulses are fine...
       SetTmStpDisc(my_unp_data.GetTmStp()); //set function will check validity of channel
 
     }
-    //    //if info codes for timestamp synchronization
-    //    else if(my_unp_data.GetInfoCode()==2 || my_unp_data.GetInfoCode()==3 || my_unp_data.GetInfoCode()==4 ){
-    //      SetBPushData(true);
-    //      //fill anything?
-    //    }
+
     //if CORRELATION SCALER 
     else if(my_unp_data.GetInfoCode()==8){
 
-      //if(GetCorrFlag()  &&  (GetModule()==13 ||GetModule()==14 ||GetModule()==16 ) ){ //NO corr flag from Unpacker
       if(  GetModule()==13 ||GetModule()==14 ||GetModule()==16  ){
 
-	//	double offset=  1.*my_unp_data.GetCorrScaler() - aida_time_calib*my_unp_data.GetTmStp();
-	//	int64_t offset=  my_unp_data.GetCorrScaler() - my_unp_data.GetTmStp();
+
 	int64_t offset=  4*my_unp_data.GetCorrScaler() - my_unp_data.GetTmStp(); //AIDA= 100MHz Corr scaler= 25MHz
 
 	SetBCorrStatus(true);
@@ -90,10 +75,6 @@ void Calibrator::Process(Unpacker & my_unp_data){
       SetBPushData(true);
       SetBFillTree(true);
     }
-
-    //    if(GetBPushData() || GetBFillTree()){
-    //      SetInfoCode(my_unp_data.GetInfoCode());
-    //    }
   }
 
 
@@ -122,8 +103,6 @@ void Calibrator::Process(Unpacker & my_unp_data){
   if(GetBPushData() || GetBFillTree() ){
 
     //timing only if it makes sense...
-
-
     SetTimeAida(my_unp_data.GetTmStp());
 
     if(GetDataType()==3) SetDiscFlag(SetTimeDisc()); // check if thre is a fast disc. value for this ADC hit
@@ -131,7 +110,7 @@ void Calibrator::Process(Unpacker & my_unp_data){
     SetCorrFlag();
     SetTimeExternal();
 
-
+	/******* FS *************
     if(b_debug){
       if(GetDataType()==2 && (my_unp_data.GetInfoCode()==8 || my_unp_data.GetInfoCode()==4 )){
 	if(GetModule()==13 ||GetModule()==14 ||GetModule()==16 ){
@@ -140,7 +119,7 @@ void Calibrator::Process(Unpacker & my_unp_data){
 	}
       }
     }
-
+	****************************/
   }
 
 
@@ -150,14 +129,13 @@ void Calibrator::Process(Unpacker & my_unp_data){
     out_root_tree->Fill();
   }
 
- 
+  /************* fs *********** 
   if(GetBHistograms()){
     //Fill histograms here
-
     //Do we need any of the time-stamp variables calculated only for GetBPushData() or GetBFillTree()?
     FillHistograms(); 
   } 
- 
+ ********************************/
 
 }
 
@@ -241,7 +219,6 @@ void Calibrator::InitCalibrator(int opt, char *file_name){
 
 
     }
-    //hUnpModAdc = new TH1I("hUnpModAdc","Fee64 for ADC data;module id",17,0,17);
   
     if(b_debug) std::cout << "db    Calibrator.cpp: Initialized histograms and canvas for this step"<<std::endl;
   }
@@ -252,8 +229,6 @@ void Calibrator::InitCalibrator(int opt, char *file_name){
     std::cout << " ***     Calibrator::InitCalibrator(): initializing TTree" << std::endl;
     //Initialize TTree
     out_root_tree = new TTree("AIDA_calibrate","AIDA_calibrate");
-    // (25/4) removed sync_flag!
-    // (16/6) removed sync_flag again!
     out_root_tree->Branch("entry_calibrate",&cal_data,"time_aida/D:time_disc/D:time_external/D:adc_energy/D:adc_data/I:dssd/I:strip/I:adc_range/b:side/b:module/b:channel/b:data_type/b:info_code/b:corr_flag/O:disc_flag/O");
                                 
     out_root_tree->SetAutoSave(-500000000);
@@ -316,15 +291,6 @@ void Calibrator::LoadParameters(char * file_name){
 
 	  if(GetBDebug()) std::cout << " * LoadParameter() - values read: " << par_name << " "<< x << y << z << std::endl;
 
-	  /******************
-	  if(par_name=="b_mod_enabled"){
-	    module= x; b_data= int(y);
-	    if(IsValidChannel(module, 0)){
-	      par_count++;
-	      b_mod_enabled[module]= data;
-	    }
-	  }
-	  **********************/
 	  if(par_name=="map_dssd"){
 	    module= x; data= y;
 	    if(IsValidChannel(module, 0)){
@@ -388,10 +354,6 @@ void Calibrator::LoadParameters(char * file_name){
 	    //module= x; channel= y;
 	    data= x;
 	    disc_time_window= x;
-	    //if(IsValidChannel(module, channel)){
-	    //  par_count++;
-	    //  adc_gain[module][channel]= data;
-	    //}
 	  }
 	  else if(par_name=="aida_time_calib"){
 	    //module= x; channel= y;
@@ -402,8 +364,6 @@ void Calibrator::LoadParameters(char * file_name){
 	  else{
 	    if(b_debug) std::cout << " Calibrator.cpp:: parameter name not recognized: " << par_name << "." <<std::endl;
 	  }
-	
-	  /***********************/
 	}
 	
 
@@ -461,7 +421,6 @@ void Calibrator::ResetData(){
   cal_data.data_type= 0;
   cal_data.info_code= 0;
 
-  //cal_data.sync_flag= false;
   cal_data.corr_flag= false; 
   cal_data.disc_flag= false; 
 
@@ -489,8 +448,6 @@ void Calibrator::Write(){
 bool Calibrator::SetGeometry(){
 
 
-  //if(GetBValidCh()){
-
     cal_data.dssd = map_dssd[GetModule()];
 
     // higher number channels for strips at center of detector (FEE for each half)
@@ -504,11 +461,9 @@ bool Calibrator::SetGeometry(){
       cal_data.strip = -1;
     }
 
-    //    if( map_side[GetModule()] == 0 || map_side[GetModule()]==1 )
     cal_data.side = map_side[GetModule()];
 
     return true;
-    //}
 
     //return false;
 }
@@ -518,7 +473,6 @@ void Calibrator::CalibrateAdc(){
   if(GetAdcRange() == 0){ //decay
 
     double value;
-    //    value = GetAdcData() - common::ADC_ZERO + adc_offset[GetModule()][GetChannel()];
     value = GetAdcData() - common::ADC_ZERO - adc_offset[GetModule()][GetChannel()];
     SetAdcEnergy(adc_polarity[GetModule()] * adc_gain[GetModule()][GetChannel()] * value);
   }
@@ -577,24 +531,14 @@ void Calibrator::SetBCorrStatus(bool flag){
   b_corr_status= flag;
 }
 
-//void Calibrator::SetBCorrOffset(bool flag){
-// b_corr_offset= flag;
-//}
-
 
 void Calibrator::SetTmStpDisc(unsigned long value){
-  //  if(GetBValidCh()){
     tm_stp_disc[GetModule()][GetChannel()]= value;
-    //  }
-
 }
 
 void Calibrator::SetTmStpOffset(int64_t value){ //diff AIDA->EXTERNAL tm-stp
 
-  //double offset=  aida_time_calib*(my_unp_data.GetCorrScaler() - my_unp_data.GetTmStp());
-
   tm_stp_corr_offset= value; 
-  //tm_stp_corr_offset= 1.*t_EXT - aida_time_calib*t_AIDA;
 
 }
 
@@ -608,34 +552,14 @@ void Calibrator::SetTimeAida(double value){
 bool Calibrator::SetTimeDisc(){
 
 
-  /********************
-    //check we have detected previous value for DISC for this channel
-    if(tm_stp_disc[GetModule()][GetChannel()]>0){
-
-      cal_data.time_disc= tm_stp_disc[GetModule()][GetChannel()];
-
-      tm_stp_disc[GetModule()][GetChannel()]=0; //clear value of stored DISC timestamp for this channel
-
-      if( (GetTimeAida() - cal_data.time_disc < disc_time_window) && (GetTimeAida()>=cal_data.time_disc) ){
-	return true;
-      }
-      else return false; 
-    }
-
-
-  return false;
-  ***********************/
   return false;
 }
 
 
 void Calibrator::SetTimeExternal(){
-
-  //  if(GetCorrFlag() && GetSyncFlag()){  
   if(GetCorrFlag()){  
 
     cal_data.time_external=(cal_data.time_aida + tm_stp_corr_offset)/  aida_time_calib; 
-    //    cal_data.time_external= aida_time_calib*(cal_data.time_aida + tm_stp_corr_offset); 
   }
   else cal_data.time_external= 0;
 }
@@ -678,10 +602,6 @@ void Calibrator::SetDataType(unsigned char value){
 void Calibrator::SetInfoCode(unsigned char value){
   cal_data.info_code= value;
 }
-
-//void Calibrator::SetSyncFlag(bool value){
-//  cal_data.sync_flag= value;
-//}
 
 void Calibrator::SetCorrFlag(){
 

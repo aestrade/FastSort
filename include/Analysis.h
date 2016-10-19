@@ -1,17 +1,11 @@
 #ifndef _Analysis_H //what is going on here?
 #define _Analysis_H
 
-//#include <fstream>
 #include <iostream>
-//#include <string>
-
-
-//#include <TFile.h>
 #include <TTree.h>
 #include <TCanvas.h>
 #include <TH2.h>
 #include <TH1.h>
-
 #include "Calibrator.h"
 #include "DataSource.h"
 #include "Common.h"
@@ -23,10 +17,7 @@ class Analysis{
   bool b_histograms;
 
   bool b_root_tree; //do we write data to file
-  //  bool b_push_data;
-  //  bool b_fill_tree;
   TTree * out_root_tree;
-
 
   // ----- correlations in time of different types -----
   static const int n_update= 10000000;
@@ -50,8 +41,6 @@ class Analysis{
   int E_d_min;
   int E_d_max;
 
-  // double t0_i, t0_d;
-
   int strip_min_i[4][2]; //for dX of strips
   int strip_max_i[4][2];
   int strip_min_d[4][2];
@@ -67,7 +56,6 @@ class Analysis{
   double t_low_prev;
   double t_high_prev;
   double t_disc_prev;
-
 
   bool b_pulser;
 
@@ -122,11 +110,6 @@ class Analysis{
  public:
 
   //-----ADC data singles
-  // . dE(low) vs ch
-  // . dE(low) vs ch with discriminator
-  // . dE(high) vs channel
-  // . ch vs module (low, disc, high)
-  //
   TH2I * hADClowCh[common::N_FEE64];
   TH2I * hADCdiscCh[common::N_FEE64];
   TH2I * hADChighCh[common::N_FEE64];
@@ -136,7 +119,6 @@ class Analysis{
 
 
   //energy sum
-
   TH1I * hElow[common::N_FEE64];
   TH1I * hEdisc[common::N_FEE64];
   TH1I * hEhigh[common::N_FEE64];
@@ -144,11 +126,6 @@ class Analysis{
 
 
   //----------Monitor performance
-  // . SYNC/PAUS/RESUME per FEE
-  // . ADC(high) per FEE
-  // . ADC(low) per FEE
-  // . ADC(disc) per FEE
-
   TH1I * hSyncFEE;
   TH1I * hPauseFEE;
   TH1I * hResumeFEE;
@@ -165,13 +142,7 @@ class Analysis{
   TH1I * hTimeStampExt;
   TH1I * hTimeStampFlag;
 
-
-
-
-
   //------------Event building
-  //. E pulser(high multiplicity)
-  //. 
   TH2I * hEvt_ExEy_if[4];
   TH2I * hEvt_XY_if[4];
   TH1I * hEvt_Eside_if[4][2];
@@ -192,10 +163,6 @@ class Analysis{
 
   TH2I * hEvt_ExEy[4];
   TH2I * hEvt_EdE;
-  //  TH2I * HEvt_EdE_gE;
-  //TH2I * HEvt_EdE_gX;
-  // TH2I * HEvt_EdE_g***; //also advanced patterns... hits first det but not last dssd?
-
   
   TH1I * hEvt_X[4];
   TH1I * hEvt_Y[4];
@@ -207,8 +174,6 @@ class Analysis{
   TH2I * hEvt_dYdY;
 
   TH1I * hEvt_Multi[4][2];
-  //  TH1I * hEvt_Hits_gE[4][2];
-  //  TH1I * hEvt_Hits_gX[4][2];
   TH2I * hEvt_MultiSide[4];
 
   TH1I * hEvt_HitsSide;
@@ -218,15 +183,10 @@ class Analysis{
 
   TH1I * hEvt_TmStpDist[4];
 
-
   //
   // decay events
   //
   TH1I * hEvt_Eside_d[4][2];
-  //TH1I * hEvt_Eaida;
-  //TH1I * hEvt_Eaida_gE;
-  //TH1I * hEvt_Eaida_gX;
-
   TH2I * hEvt_ExEy_d[4]; //
   TH2I * hEvt_ExEy_sum_d[4]; //
 
@@ -238,8 +198,6 @@ class Analysis{
   TH1I * hEvt_dY_d[4];
 
   TH2I * hEvt_XY_d[4];
-  //  TH2I * hEvt_dXdX;
-  //  TH2I * hEvt_dYdY;
 
   TH1I * hEvt_MultiDet_d; //how many detectors have decay info
   TH2I * hEvt_MultiSide_d[4]; //how many sides have decay info (with implant, det==1, /*det>1*/)
@@ -281,8 +239,6 @@ class Analysis{
   void InitAnalysis(int opt); //
   void Process(DataSource & my_source, Calibrator & my_cal_data);
   void Close();
-  //  void LoadParameters(char *file_name);
-
 
   bool BuildEvent(Calibrator & my_cal_data);
   void CloseEvent();
@@ -294,13 +250,8 @@ class Analysis{
   void UpdateHistograms();
   void ResetHistograms();
 
-  //  bool IsValidChannel(int module, int channel);
-  //  void Update();
-  //  void SetCanvas2(TCanvas * canvas);
-
   void ResetEvent();
   void WriteHistograms();
-  //  void ResetHistograms();
 
   void WriteOutBuffer(DataSource & my_source);
 
@@ -309,7 +260,6 @@ class Analysis{
   //get and set: which ones!
 
   bool SetEventTimeWindow(double value);
-  //  void CalibrateAdc();
 
   void PrintEvent();
 
@@ -321,17 +271,13 @@ class Analysis{
   void SetBRootTree(bool flag);
 
 
-
-
   //Getters...
   double GetEventTimeWindow();
-
   bool GetBDebug();
   bool GetBHistograms();
   bool GetBPushData();
   bool GetBFillTree();
   bool GetBRootTree();
-
   int GetMultiplicity();
 
 };

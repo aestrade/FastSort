@@ -1,26 +1,14 @@
 #include "Analysis.h"
-//#include "Common.h"
-//#include "DutClass.h"
-
-
-//#include <bitset>
-//#include <fstream>
 #include <iomanip>
 #include <stdio.h>
-//#include <sstream>
 #include <string>
-
 
 
 //the heart of the matter
 void Analysis::Process(DataSource & my_source, Calibrator & my_cal_data){
 
-  //ResetData(); //set values of unp_data to defaults (zero)
-
   //channel will be set to default values for some bits of data where they don't apply (SYNC pulse)
-
-  
-  if(GetBHistograms()) FillHistogramsSingles(my_cal_data);
+  //-FS   if(GetBHistograms()) FillHistogramsSingles(my_cal_data);
 
   //if end of this event
   if( BuildEvent(my_cal_data) ){
@@ -28,28 +16,26 @@ void Analysis::Process(DataSource & my_source, Calibrator & my_cal_data){
     if(GetMultiplicity()>0){
        CloseEvent();
 
+      /**************
       if(b_debug){
 	PrintEvent();
-	// std::cout << " db    * EVENT *  filling histograms (multiplicity: " << GetMultiplicity() <<")"<< std::endl;
       }
+      *****************/
 
-      if(GetBHistograms()) FillHistogramsEvent();
+      //-FS if(GetBHistograms()) FillHistogramsEvent();
 
       if(my_source.GetBSendData()) WriteOutBuffer(my_source);
     }
-    //  else std::cout<< "****AM I ANY TIME LESS THAN ONE!!!!! ****\n\n\n"<<std::endl;
     InitEvent(my_cal_data);
   }
 }
+
 //the real heart of the matter
 bool Analysis::BuildEvent(Calibrator & my_cal_data){
 
-  //if(!my_cal_data.GetAdcRange() || !my_cal_data.GetSyncFlag()) return false; //skip low energy r
-  //  if( !my_cal_data.GetSyncFlag()) return false; //data without correponding SYNC100 pulses will be filtered by Unpacker stage
   if(!my_cal_data.GetAdcRange() && !my_cal_data.GetModule()==30) return false; //skip low energy range of NNAIDA#30
  
   if(!IsChEnabled(my_cal_data)) return false; //skip channels not enabled
-
 
   //continue if good data type to create event...
 
@@ -85,34 +71,17 @@ bool Analysis::BuildEvent(Calibrator & my_cal_data){
   int range = my_cal_data.GetAdcRange();
 
 
-  //  bool b_add= false;
-
+  //-FS: this should go away, is remmand of using one FEE for MUSIC/TAC in 2015 test
   if(det>0 ){
     if(side==0) energy= my_cal_data.GetAdcData() - common::ADC_ZERO;
     else if(side==1) energy = common::ADC_ZERO - my_cal_data.GetAdcData();
   }
   else if (det==0) energy = common::ADC_ZERO - my_cal_data.GetAdcData();
-
-
-  /**********
-  if(range == 1){
-    if(energy> E_i_min){ b_add = true;}
-  }
-
-  else if( energy < E_d_max  && energy > E_d_min){
-      if( my_cal_data.GetModule() != 11 && my_cal_data.GetModule() != 16 ){ b_add= true;}
-    }
-  **************/
     
       
-      
-  
-  //  if(b_add){
-
   evt_data.multiplicity++;
     
     
-
   //IMPLANT IMPLANT IMPLANT
   if(range == 1){
     evt_data.n_det_i[det]= evt_data.n_det_i[det]+1;
@@ -130,16 +99,10 @@ bool Analysis::BuildEvent(Calibrator & my_cal_data){
     evt_data.n_det_d[det]= evt_data.n_det_d[det]+1;
     evt_data.n_side_d[det][side]= evt_data.n_side_d[det][side]+1;
     
-    
     e_sum_d[det][side]= e_sum_d[det][side]+energy;
     
     if(strip>strip_max_d[det][side]) strip_max_d[det][side]= strip;
     if(strip<strip_min_d[det][side]) strip_min_d[det][side]= strip;
-
-    //if(b_debug && strip==strip_max_d[det][side]){
-
-    //d::cout << " IT IS POSSIBLE!!!  r:" << range<< "  d:" << det << " s:" << side << " ch:" << strip << "  e:" << energy<< std::endl;
-    //
     
     //if new max value for E of this event
     if(energy>evt_data.e_d[det][side]){
@@ -161,20 +124,13 @@ bool Analysis::BuildEvent(Calibrator & my_cal_data){
     //   Fill some histograms with internal event data
     //
     //----------------------------------------------------------
+    /************* FS ********************
     if(GetBHistograms()){
-
-      //td::cout << "filll..."<< evt_data.dt << std::endl;
       hEvt_TmStpDist[0]->Fill( evt_data.dt );
-      //Evt_TmStpDist[3]->Fill( 24 );
-
       hEvt_TmStpDist[3]->Fill( my_cal_data.GetTimeAida() - evt_data.t0 );
-
-      
       if(my_cal_data.GetDiscFlag()) hEvt_TmStpDist[2]->Fill( my_cal_data.GetTimeDisc() - evt_data.t0 );
-
     }
-    
-    //}  //b_add
+    *************************************/
 
   return false;
   
@@ -184,12 +140,6 @@ bool Analysis::BuildEvent(Calibrator & my_cal_data){
 void Analysis::CloseEvent(){
 
   
-
-  bool b_beam= false;
-  //  if(evt_data.n_det_i[0]>0 && evt_data.e_i[0][0]>18000 && evt_data.e_i[0][0]<30500){
-  //  b_beam= true;
-  // }
-
   int NmaxI=4;
   int EminI=500;
   int N_max_decay=4;
@@ -199,8 +149,7 @@ void Analysis::CloseEvent(){
 
   //IMPLANTS IMPLANTS
   // Det#1  Det#1  Det#1
-
-  /******* HV tripped: no Det#1 in later parts of beam test *********
+  /******* HV tripped: no Det#1 in later parts of beam test *********/
   if(evt_data.n_side_i[1][0]>0 && evt_data.n_side_i[1][1]>0){
 
     //N det2 and det3 are zero
@@ -213,17 +162,15 @@ void Analysis::CloseEvent(){
 	if(evt_data.e_i[1][0]>EminI && evt_data.e_i[1][1]>EminI){
 	  evt_data.implant_flag= 1;
 	}
-	//dE<50% E max
       }
     }
   }
-  ****************************************************************/
+  /****************************************************************/
 
   // Det#2  Det#2  Det#2
   if(evt_data.n_side_i[2][0]>0 && evt_data.n_side_i[2][1]>0){
 
     //N det3 is zero, and 1 has XY
-    //    if(evt_data.n_det_i[3]==0 ){ //Det#1 kaput
     //    if(evt_data.n_det_i[3]==0 && evt_data.n_side_i[1][0]>0 && evt_data.n_side_i[1][1]>0){
     if(evt_data.n_det_i[3]==0){
 
@@ -391,18 +338,10 @@ void Analysis::InitEvent(Calibrator & my_cal_data){
     evt_data.t0_ext= my_cal_data.GetTimeExternal();
 
   }
-  //evt_data.t0= my_cal_data.GetTimeAida();
 
   BuildEvent(my_cal_data);
 
-
 }
-
-
-
-
-
-
 
 
 void Analysis::WriteOutBuffer(DataSource & my_source){
@@ -412,13 +351,6 @@ void Analysis::WriteOutBuffer(DataSource & my_source){
   int s_char= sizeof(char);
 
   int offset=my_source.GetBuffOffset(); 
-  //int 4
-  //char 1
-
-  //  int my_int[4][2];
-  //  for(int i=0;i<4;i++){
-  //    my_int[i][0]= evt_data.e_i[1][0];
-  //  }
 
   int32_t aida_id= 0xA1DA;
 
@@ -433,7 +365,6 @@ void Analysis::WriteOutBuffer(DataSource & my_source){
     for(int i= offset; i< offset+sizeof(evt_data)+sizeof(int32_t); i++){
       if((j%16)==0) std::cout<< std::endl <<" -- "; //printf("\n");
       if( (j%4)==0) std::cout << " 0x";
-      //    std::cout << std::setw(2) << std::hex << (unsigned char) my_source.BufferOut[i]; 
       
       printf("%02hhx",my_source.BufferOut[i]);
       
@@ -444,115 +375,13 @@ void Analysis::WriteOutBuffer(DataSource & my_source){
 
   offset= offset + sizeof(evt_data)+sizeof(int32_t);
 
-  
-
-  /********************
-  //                                                  1234567812345678
-  my_source.BufferOut[offset]= ( 0xABCDABCD << 8 ) |(int)evt_data.e_i[0][0]  & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+1*s_double]= ( 0xABCDABCD << 8 ) | (int)evt_data.e_i[0][1] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+2*s_double]= (int)evt_data.e_i[1][0] & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+3*s_double]= (int)evt_data.e_i[1][1] & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+4*s_double]= (int)evt_data.e_i[2][0] & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+5*s_double]= (int)evt_data.e_i[2][1] & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+6*s_double]= (int)evt_data.e_i[3][0] & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+7*s_double]= (int)evt_data.e_i[3][1] & 0xFFFFFFFFFFFFFFFF ;
-
-  offset= offset+ 8*s_double;
-
-  //  for(int i=0;i<4;i++){
-    //    my_int[i][0]= evt_data.e_d[1][0];
-    //  }
-
-
-  my_source.BufferOut[offset]= (int)evt_data.e_d[0][0] & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+1*s_double]= (int)evt_data.e_d[0][1] & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+2*s_double]= (int)evt_data.e_d[1][0] & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+3*s_double]= (int)evt_data.e_d[1][1] & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+4*s_double]= (int)evt_data.e_d[2][0] & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+5*s_double]= (int)evt_data.e_d[2][1] & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+6*s_double]= (int)evt_data.e_d[3][0] & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+7*s_double]= (int)evt_data.e_d[3][1] & 0xFFFFFFFFFFFFFFFF ;
-
-  offset= offset+ 8*s_double;
-
-
-  my_source.BufferOut[offset]= (int)evt_data.t0 & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+s_double]= (int)evt_data.t0_ext & 0xFFFFFFFFFFFFFFFF ;
-  my_source.BufferOut[offset+2*s_double]= (int)evt_data.dt & 0xFFFFFFFFFFFFFFFF ;
-
-  offset= offset + 3*s_double;
-  
-  //                                                     12345678
-  my_source.BufferOut[offset]= evt_data.multiplicity & 0xFFFFFFFF ;
-
-  my_source.BufferOut[offset+s_int]= evt_data.n_side_i[0][0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+2*s_int]= evt_data.n_side_i[0][1] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+3*s_int]= evt_data.n_side_i[1][0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+4*s_int]= evt_data.n_side_i[1][1] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+5*s_int]= evt_data.n_side_i[2][0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+6*s_int]= evt_data.n_side_i[2][1] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+7*s_int]= evt_data.n_side_i[3][0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+8*s_int]= evt_data.n_side_i[3][1] & 0xFFFFFFFF ;
-  
-  my_source.BufferOut[offset+9*s_int]= evt_data.n_side_d[0][0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+10*s_int]= evt_data.n_side_d[0][1] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+11*s_int]= evt_data.n_side_d[1][0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+12*s_int]= evt_data.n_side_d[1][1] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+13*s_int]= evt_data.n_side_d[2][0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+14*s_int]= evt_data.n_side_d[2][1] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+15*s_int]= evt_data.n_side_d[3][0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+16*s_int]= evt_data.n_side_d[3][1] & 0xFFFFFFFF ;
-
-  offset= offset + 17*s_int;
-  
-  my_source.BufferOut[offset]= evt_data.n_det_i[0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+s_int]= evt_data.n_det_i[1] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+2*s_int]= evt_data.n_det_i[2] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+3*s_int]= evt_data.n_det_i[3] & 0xFFFFFFFF ;
-
-  my_source.BufferOut[offset+4*s_int]= evt_data.n_det_d[0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+5*s_int]= evt_data.n_det_d[1] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+6*s_int]= evt_data.n_det_d[2] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+7*s_int]= evt_data.n_det_d[3] & 0xFFFFFFFF ;
-
-  my_source.BufferOut[offset+8*s_int]= evt_data.x_i[0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+9*s_int]= evt_data.x_i[1] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+10*s_int]= evt_data.x_i[2] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+11*s_int]= evt_data.x_i[3] & 0xFFFFFFFF ;
-
-  my_source.BufferOut[offset+12*s_int]= evt_data.y_i[0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+13*s_int]= evt_data.y_i[1] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+14*s_int]= evt_data.y_i[2] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+14*s_int]= evt_data.y_i[3] & 0xFFFFFFFF ;
-
-  my_source.BufferOut[offset+16*s_int]= evt_data.x_d[0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+17*s_int]= evt_data.x_d[1] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+18*s_int]= evt_data.x_d[2] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+19*s_int]= evt_data.x_d[3] & 0xFFFFFFFF ;
-
-  my_source.BufferOut[offset+20*s_int]= evt_data.y_d[0] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+21*s_int]= evt_data.y_d[1] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+22*s_int]= evt_data.y_d[2] & 0xFFFFFFFF ;
-  my_source.BufferOut[offset+23*s_int]= evt_data.y_d[3] & 0xFFFFFFFF ;
-
-  offset= offset+ 24*s_int;
-
-
-  my_source.BufferOut[offset]= evt_data.decay_flag & 0xFF ;
-  my_source.BufferOut[offset+s_char]= evt_data.implant_flag & 0xFF ;
-
-  offset= offset+2*s_char;
-  ********************/
-
+ 
   my_source.SetBuffOffset(offset);
   my_source.TransferBuffer(evt_data.t0);
 
   return;
 
 }
-
-
-
 
 
 
@@ -574,32 +403,25 @@ void Analysis::FillHistogramsSingles(Calibrator & my_cal_data){
 
     if(ch<0 || ch>63){
       std::cout << "\n******************     ch" << ch<< "->0  ***********************"<<std::endl;
-      //      std::cout << "\n**********************************************\n         det0 \n***********************"<<std::endl;
+
       ch=0;
     }
 
   if(mod<0 || mod>32){
     std::cout << "\n******************     mod" << mod<< "->0  ***********************"<<std::endl;
-    //    std::cout << "\n**********************************************\n         det0 \n***********************"<<std::endl;
     mod=0;
   }
 
   if(side<0 || side>2){
     std::cout << "\n******************     side" << side<< "->0  ***********************"<<std::endl;
-    //  std::cout << "\n**********************************************\n         det0 \n***********************"<<std::endl;
     side=0;
   }
 
-
-
-   
     //DECAY DECAY DECAY
     if(my_cal_data.GetAdcRange()==0){
-      //std::cout << " DECAYabout to fill histos....1" << std::endl;
       hADClowCh[mod]->Fill(ch,my_cal_data.GetAdcData());
       hCh_ADClow[mod]->Fill(ch);
 
-      //   hElow[mod]->Fill(my_cal_data.GetAdcEnergy());
       hElow[mod]->Fill(my_cal_data.GetAdcData());
       if(my_cal_data.GetDiscFlag()) hEdisc[mod]->Fill(my_cal_data.GetAdcData());
 
@@ -608,10 +430,6 @@ void Analysis::FillHistogramsSingles(Calibrator & my_cal_data){
 	hCh_ADCdisc[mod]->Fill(ch);
       }
 
-      //std::cout << " about to fill histos....1" << std::endl;
-
-      //TS dist
-      //if(det>0){
       hTimeADClow[0]->Fill(my_cal_data.GetTimeAida()-t_low_prev);
       t_low_prev= my_cal_data.GetTimeAida();
 
@@ -619,12 +437,9 @@ void Analysis::FillHistogramsSingles(Calibrator & my_cal_data){
 	hTimeADCdisc[0]->Fill(my_cal_data.GetTimeDisc()-t_disc_prev);
 	t_disc_prev= my_cal_data.GetTimeDisc();
       }
-      //}
     }
     //IMPLANT IMPLANT IMPLANT
     else if(my_cal_data.GetAdcRange()==1){
-
-      //std::cout << " about to fill histos....2" << std::endl;
 
       hADChighCh[mod]->Fill(ch,my_cal_data.GetAdcData());
       hCh_ADChigh[mod]->Fill(ch);
@@ -633,11 +448,8 @@ void Analysis::FillHistogramsSingles(Calibrator & my_cal_data){
       hEhigh[mod]->Fill(my_cal_data.GetAdcData());
 
       //TS dist
-      // if(det>0){
       hTimeADChigh[0]->Fill(my_cal_data.GetTimeAida()-t_high_prev);
       t_high_prev= my_cal_data.GetTimeAida();
-      //}
-
     }
 
     if(0) std::cout << " TS(aida), TS(ext): " << my_cal_data.GetTimeAida()<<",  "<< my_cal_data.GetCorrFlag() << ":  "<< my_cal_data.GetTimeExternal()<<std::endl;
@@ -650,12 +462,7 @@ void Analysis::FillHistogramsSingles(Calibrator & my_cal_data){
       hTimeStampFlag->Fill( 1 );
     }
     else  hTimeStampFlag->Fill( 0 );
-    // else 
-
   }
-
-
-  //std::cout << " done.....about to fill histos....0" << std::endl;
 
 }
 
@@ -692,7 +499,6 @@ void Analysis::FillHistogramsEvent(){
   if(evt_data.decay_flag>0) hEvt_HitsFlag->Fill(1);
 
   if(b_debug){
-    // PrintEvent();
     printf("        eaida %f,    edet[i]  %f  %f  %f  %f \n", e_aida, e_det[0], e_det[1], e_det[2], e_det[3]);
   }
 
@@ -703,7 +509,6 @@ void Analysis::FillHistogramsEvent(){
       
       for(int j=0;j<2;j++){
 	if(evt_data.n_side_i[i][j]>0){
-	  //if(i !=0 && j!=1) 
 	  hEvt_Eside[i][j]->Fill( evt_data.e_i[i][j] );
 	  hEvt_Multi[i][j]->Fill(evt_data.n_side_i[i][j]);
 
@@ -731,9 +536,7 @@ void Analysis::FillHistogramsEvent(){
       }
       
     }
-    
-    
-    
+        
     hEvt_Eaida->Fill(e_aida);
     hEvt_EdE->Fill(e_det[0],e_aida);
 
@@ -765,26 +568,6 @@ void Analysis::FillHistogramsEvent(){
       if(evt_data.n_side_i[i][1]>0) hEvt_HitsSide->Fill(i*2+1,1); 
     }
     
-    /**************
-    if(b_gE){
-      hEvt_Eaida_gE->Fill(e_aida);
-    }
-    
-    if(b_gX){
-      hEvt_Eaida_gX->Fill(e_aida);
-      // hEvt_HitsDet_gX->Fill(i,1);
-    }
-    *****************/
-    
-    /*************
-    for(int i=1;i<common::N_DSSD;i++){
-      if(evt_data.n_det_i[i]>0){
-	
-	if(b_gE) hEvt_HitsDet_gE->Fill(i,1);
-	if(b_gX) hEvt_HitsDet_gX->Fill(i,1);
-      }
-    }
-    **************/
 
     hEvt_TmStpDist[1]->Fill( evt_data.dt );
 
@@ -797,12 +580,8 @@ void Analysis::FillHistogramsEvent(){
   }
   else if(multi_d>0){
 
-    //  if(evt_data.n_det_d[1]<4 && evt_data.n_det_d[2]<4 && evt_data.n_det_d[3]<4){
-
     /// EVENT : DECAY : HISTOGRAMS
     int multi_det_d=0;
-    //    int multi_side_d[3]={0};
-    //    int multi_strip_d[3]={0};
     
     for(int i=0;i<common::N_DSSD; i++){
     
@@ -843,15 +622,10 @@ void Analysis::FillHistogramsEvent(){
 	}
 	
       }
-      //volver volver volver: llena la multiplicccccccccccccccccccc
-      //      if(evt_data.n_det_d[i]>0){
-      hEvt_MultiDet_d->Fill(multi_det_d);
-      //}
 
-      //      hEvt_MultiSide_d[0]->Fill(0.,1.*i);
+      hEvt_MultiDet_d->Fill(multi_det_d);
       if(evt_data.n_side_d[i][0]>0 && evt_data.n_side_d[i][1]>0)  hEvt_MultiSide_d[0]->Fill(i,2);
       else if(evt_data.n_side_d[i][0]>0 || evt_data.n_side_d[i][1]>0) hEvt_MultiSide_d[0]->Fill(i,1);
-      //      if(evt_data.n_side_d[i][1]>0) hEvt_MultiDet_d->Fill(i,2);
       
       if(i>0){
 	if(evt_data.n_side_d[i][0]>0){
@@ -862,20 +636,12 @@ void Analysis::FillHistogramsEvent(){
 	if(evt_data.n_side_d[i][1]>0){
 	  hEvt_MultiStrip_d[i][1]->Fill(evt_data.n_side_d[i][0]);
 	  hEvt_MultidX_d[i][1]->Fill(evt_data.n_side_d[i][1],strip_max_d[i][1]-strip_min_d[i][1]);
-	  //	  std::cout << "x,y: " << evt_data.n_side_d[i][1]<<" "<<strip_max_d[i][1]-strip_min_d[i][1]<<std::endl;
 	}
       }
     }
 
     if(b_debug) std::cout << "db     Analysis::FillHistrgramsEvent():   done with evt_decay (multi="<<multi_d<<")"<< std::endl;
-    // }
   }
-
-
-  //  if(b_debug) std::cout << "db     Analysis::FillHistrgramsEvent():   done with evt_decay"<< std::endl;
-
-
-
 
 }
 
@@ -917,26 +683,18 @@ void Analysis::UpdateHistograms(){
   
   for(int i=0;i<20;i++){
     if(i<16) cEvtE1->cd(i+1)->Modified();
-    //    if(i<8) cEvtE2->cd(i+1)->Modified();
     if(i<12) cEvtXY->cd(i+1)->Modified();
     if(i<9) cEvtdXdY->cd(i+1)->Modified();
     if(i<12) cEvtMulti->cd(i+1)->Modified();
-    //    if(i<4) cEvtHits->cd(i+1)->Modified();
-    //    if(i<4) cEvtTS->cd(i+1)->Modified();
-
     if(i<20) cEvtE_d->cd(i+1)->Modified();
     if(i<12) cEvtXY_d->cd(i+1)->Modified();
     if(i<6) cEvtXY2_d->cd(i+1)->Modified();
     if(i<12) cEvtMulti_d->cd(i+1)->Modified();
   }
   cEvtE1->Update();
-  //  cEvtE2->Update();
   cEvtXY->Update();
   cEvtdXdY->Update();
   cEvtMulti->Update();
-  //  cEvtHits->Update();
-  //  cEvtTS->Update();
-
   cEvtE_d->Update();
   cEvtXY_d->Update();
   cEvtXY2_d->Update();
@@ -947,19 +705,12 @@ void Analysis::UpdateHistograms(){
 
 
 
-
-
-
-
-
 void Analysis::InitAnalysis(int opt){
 
   event_count= 0;
   t_low_prev= 0;
   t_high_prev= 0;
   t_disc_prev= 0;
-
-  //  b_implant_det2= false;
   b_pulser= false;
 
   ResetEvent();
@@ -1084,9 +835,6 @@ void Analysis::InitAnalysis(int opt){
 
     SetBHistograms(true);
     
-    //  cCal1= new TCanvas("cCal1","cCal1",50,50,900,900); cCal1->Divide(4,4);
-
-    // for(int i=0;i<common::N_DSSD;i++){
       sprintf(hname,"cADClow_0");
       cADClow[0]= new TCanvas(hname, hname, 10,10,1200,900); cADClow[0]->Divide(5,3);
 
@@ -1105,12 +853,6 @@ void Analysis::InitAnalysis(int opt){
 
       sprintf(hname,"cADClow_1");
       cADClow[1]= new TCanvas(hname, hname, 10,10,1800,1000); cADClow[1]->Divide(8,4);
-
-      //      sprintf(hname,"cADChigh_1");
-      //      cADChigh[1]= new TCanvas(hname, hname, 20,20,1200,900); cADChigh[1]->Divide(5,3);
-
-      //      sprintf(hname,"cADCdisc_1");
-      //      cADCdisc[1]= new TCanvas(hname, hname, 30,30,1200,900); cADCdisc[1]->Divide(5,3);
 
 
       //  }
@@ -1141,9 +883,6 @@ void Analysis::InitAnalysis(int opt){
 	full_title= nombre[i]+stitle;
 	hADClowCh[i]= new TH2I(hname, full_title.data(), 64, 0, 64, 1024, 0, 65536);
 
-	//std::cout << "defububg histogram... "<< full_title << std::endl;
-
-	//	geo_detector[i]*12+geo_side[i]*2+geo_strip[i];
 
 	cADClow[0]->cd(k); hADClowCh[i]->Draw("colz"); gPad->SetLogz(1);
 
@@ -1171,8 +910,6 @@ void Analysis::InitAnalysis(int opt){
 	full_title= nombre[i]+stitle;
 	hCh_ADCdisc[i]= new TH1I(hname, full_title.data(), 64, 0, 64);
 
-	
-	//	cADClow[1]->cd(4+geo_detector[i]*12+geo_side[i]*2+geo_strip[i]); hCh_ADCdisc[i]->Draw("");
 
 	// ADC(implant range)
 	sprintf(hname,"hADChighCh%i",i);
@@ -1188,14 +925,12 @@ void Analysis::InitAnalysis(int opt){
 	stitle= htitle;
 	full_title= nombre[i]+stitle;
 	hCh_ADChigh[i]= new TH1I(hname, full_title.data(), 64, 0, 64);
-	//cADChigh[1]->cd(k); hCh_ADChigh[i]->Draw("");
 	cADClow[1]->cd(4+geo_detector[i]*8+geo_side[i]*2+geo_strip[i]); hCh_ADChigh[i]->Draw("");
 
 	sprintf(hname,"hElow%i",i);
 	sprintf(htitle," E(low); E [MeV]");
 	stitle= htitle;
 	full_title= nombre[i]+stitle;
-	//	hElow[i]= new TH1I(hname, full_title.data(), 1000, -5, 25);
 	if(geo_side[i]==0) hElow[i]= new TH1I(hname, full_title.data(), 1000, 30000, 65000);
 	else  hElow[i]= new TH1I(hname, full_title.data(), 1000, 0, 34000);
 
@@ -1206,7 +941,6 @@ void Analysis::InitAnalysis(int opt){
 	sprintf(htitle," E(disc); E [MeV]");
 	stitle= htitle;
 	full_title= nombre[i]+stitle;
-	//	hElow[i]= new TH1I(hname, full_title.data(), 1000, -5, 25);
 	if(geo_side[i]==0) hEdisc[i]= new TH1I(hname, full_title.data(), 1000, 30000, 65000);
 	else  hEdisc[i]= new TH1I(hname, full_title.data(), 1000, 0, 34000);
 	hEdisc[i]->SetLineColor(kRed);
@@ -1216,7 +950,6 @@ void Analysis::InitAnalysis(int opt){
 	sprintf(htitle," E(high); E [GeV]");
 	stitle= htitle;
 	full_title= nombre[i]+stitle;
-	//	hEhigh[i]= new TH1I(hname, full_title.data(), 1000, -5, 25);
 	if(geo_detector[i]==0) hEhigh[i]= new TH1I(hname, full_title.data(), 1000, 30000, 65000);
 	else if(geo_side[i]==0) hEhigh[i]= new TH1I(hname, full_title.data(), 1000, 30000, 50000);
 	else  hEhigh[i]= new TH1I(hname, full_title.data(), 1000, 15000, 34000);
@@ -1228,7 +961,6 @@ void Analysis::InitAnalysis(int opt){
 
 
       //only for detectors with data...for now
-    //for(int i=1;i<common::N_DSSD;i++){
     sprintf(hname,"cTimeDist");
     cTimeDist[0]= new TCanvas(hname, hname, 40,40,1100,700); cTimeDist[0]->Divide(4,2);
 
@@ -1253,10 +985,8 @@ void Analysis::InitAnalysis(int opt){
     //}
 
     hTimeStamp= new TH1I("hTimeStamp","Time stamp;tmstp [1/1e6]",1000,0,1e5);
-    //  cTimeDist[0]->cd(4);  hTimeStamp->Draw(""); gPad->SetLogy(1);
 
     hTimeStampExt= new TH1I("hTimeStampExt","Time stamp External;tmstp [1/1e6]",1000,0,1e5);
-    //  cTimeDist[0]->cd(5);  hTimeStampExt->Draw(""); gPad->SetLogy(1);
 
     hTimeStampFlag= new TH1I("hTimeStampFlag","Time stamp Ext Flag;corr_flag",2,0,2);
     cTimeDist[0]->cd(4);  hTimeStampFlag->Draw(""); gPad->SetLogy(1);
@@ -1270,12 +1000,9 @@ void Analysis::InitAnalysis(int opt){
 
 
     cEvtE1= new TCanvas("cEvtE1","cEvt Energy1", 100,100,1200,950); cEvtE1->Divide(4,4);
-    //    cEvtE2= new TCanvas("cEvtE2","cEvt Energy2", 120,120,1200,800); cEvtE2->Divide(3,2);
     cEvtXY= new TCanvas("cEvtXY","cEvt XY", 140,140,900,1000); cEvtXY->Divide(3,4);
     cEvtdXdY= new TCanvas("cEvtdXdY","cEvt dX:dY", 140,140,1200,800); cEvtdXdY->Divide(3,3);
     cEvtMulti= new TCanvas("cEvtMulti","cEvt Multiplicity", 140,140,1200,1000); cEvtMulti->Divide(4,3);
-    //    cEvtHits= new TCanvas("cEvtHits","cEvt Hit Patterns", 150,150,1200,800); cEvtHits->Divide(2,2);
-    //    cEvtTS=  new TCanvas("cEvtTS","cEvt Time Stamp", 160,160,1300,600); cEvtTS->Divide(2,2);
 
     for(int i=0;i<common::N_DSSD;i++){
 
@@ -1317,30 +1044,18 @@ void Analysis::InitAnalysis(int opt){
 	sprintf(hname,"hEvt_Eaida");
 	sprintf(htitle,"Energy AIDA (DSSD sum);Energy [ch]");
 	hEvt_Eaida= new TH1I(hname, htitle, 1024, 0, 49152);
-	//	cEvtE2->cd(1); hEvt_Eaida->Draw(""); gPad->SetLogy(1);
 
 	sprintf(hname,"hEvt_Eaida_gE");
 	sprintf(htitle,"Energy AIDA (DSSD sum) !E cut;Energy [ch]");
 	hEvt_Eaida_gE= new TH1I(hname, htitle, 1024, 0, 49152);
-	//	cEvtE2->cd(2); hEvt_Eaida_gE->Draw(""); gPad->SetLogy(1);
 
 	sprintf(hname,"hEvt_Eaida_gX");
 	sprintf(htitle,"Energy AIDA (DSSD sum) !X cut;Energy [ch]");
 	hEvt_Eaida_gX= new TH1I(hname, htitle, 1024, 0, 49152);
-	//	cEvtE2->cd(3); hEvt_Eaida_gX->Draw(""); gPad->SetLogy(1);
-
-
-	//  TH2I * HEvt_EdE_gE;
-	//  TH2I * HEvt_EdE_gX;
 
 	sprintf(hname,"hEvt_EdE");
 	sprintf(htitle,"Energy AIDA vs IC;Energy IC [ch];Energy AIDA [ch]");
 	hEvt_EdE= new TH2I(hname, htitle, 256, 0, 32768, 256, 0, 49152);
-	//	cEvtE2->cd(5); hEvt_EdE->Draw("colz"); gPad->SetLogz(1);
-
-
-	//sprintf(hname,"hEvt_EdE_gx");
-
       }
 
       if(i>0){
@@ -1426,7 +1141,6 @@ void Analysis::InitAnalysis(int opt){
 	cEvtMulti->cd(i+1); hEvt_Multi[i][0]->Draw(""); gPad->SetLogy(1);
       }
 
-      //  TH2I * hEvt_MultiSide[4];
       if(i==0){
 	hEvt_HitsSide= new TH1I("hEvt_HitsSide","Detector Hits (IC->Det3: each side);N hits (side)",8,0,8);
 	cEvtMulti->cd(9); hEvt_HitsSide->Draw(""); gPad->SetLogy(1);
@@ -1445,25 +1159,19 @@ void Analysis::InitAnalysis(int opt){
 
     hEvt_TmStpDist[0]= new TH1I("hEvt_TmStpDist0","Time Stamp Dist (within event);ts - ts_{0} [arb. units]",500,-2500,4500); 
     cTimeDist[0]->cd(5);
-    //cEvtTS->cd(1); 
     hEvt_TmStpDist[0]->Draw(); gPad->SetLogy(1);
 
     hEvt_TmStpDist[1]= new TH1I("hEvt_TmStpDist1","Time Stamp Dist (last hit);#Delta ts [arb. units]",500,-2500,4500); 
     cTimeDist[0]->cd(6);
-    //    cEvtTS->cd(2); 
     hEvt_TmStpDist[1]->Draw(); gPad->SetLogy(1);
 
     hEvt_TmStpDist[2]= new TH1I("hEvt_TmStpDist2","Time Stamp Dist (within event !DISC);#Delta ts [arb. units]",500,-2500,4500); 
     cTimeDist[0]->cd(7);
-    //    cEvtTS->cd(3); 
     hEvt_TmStpDist[2]->Draw(); gPad->SetLogy(1);
 
     hEvt_TmStpDist[3]= new TH1I("hEvt_TmStpDist3","Time Stamp Dist (within event !ADC);#Delta ts [arb. units]",500,-2500,4500); 
     cTimeDist[0]->cd(8);
-    //    cEvtTS->cd(4); 
     hEvt_TmStpDist[3]->Draw(); gPad->SetLogy(1);
-
-
 
 
 
@@ -1472,7 +1180,6 @@ void Analysis::InitAnalysis(int opt){
     cEvtXY_d= new TCanvas("cEvtXY_d","cEvt XY ( DECAY)", 140,140,1200,900); cEvtXY_d->Divide(4,3);
     cEvtXY2_d= new TCanvas("cEvtXY2_d","Cluster Size (DECAY)", 140,140,1000,800); cEvtXY2_d->Divide(3,2);
     cEvtMulti_d= new TCanvas("cEvtMulti_d","cEvt Multiplicity (DECAY)", 140,140,1200,800); cEvtMulti_d->Divide(4,3);
-    //  cEvtHits_d= new TCanvas("cEvtHits_d","cEvt Hit Patterns (DECAY)", 150,150,1200,800); cEvtHits_d->Divide(2,2);
 
 
     hEvt_EPulser_d= new TH2I("hEvt_EPulser_E","Pulser spectra;<E n-side> [ch];<E p-side> [ch]",100,0,32000, 100, 0, 32000); 
@@ -1648,15 +1355,11 @@ void Analysis::InitAnalysis(int opt){
     SetBRootTree(true);
   }
 
-  //  std::cout << "  Analysis::InitHistograms(): finished with initialization " << std::endl;
-
 }
 
 
 void Analysis::ResetEvent(){
 
-  //  t0_i=0;
-  //  t0_d=0;
 
   //  b_implant_det2= false;
   b_pulser= false;
@@ -1671,9 +1374,6 @@ void Analysis::ResetEvent(){
     strip_max_d[i][1]=0;
     strip_min_d[i][0]=128;
     strip_min_d[i][1]=128;
-
-
-    //
 
 
 
@@ -1718,8 +1418,6 @@ void Analysis::ResetEvent(){
 
 void Analysis::WriteHistograms(){
 
-  // printf("wrote one..... \n");
-
   for(int i=0;i<common::N_FEE64;i++){
     if(b_mod_enabled[i]){
       hADClowCh[i]->Write();
@@ -1747,8 +1445,6 @@ void Analysis::WriteHistograms(){
     hTimeStampExt->Write();
     hTimeStampFlag->Write();
 
-    //}
-    //  printf("wrote two..... \n");
 
   for(int i=0; i<4;i++){
     for(int j=0;j<2;j++){
@@ -1762,7 +1458,6 @@ void Analysis::WriteHistograms(){
 
 	hEvt_Eside_if[i][j]->Write();
       }
-      //      printf("wrote two.....ij= %i%i \n",i,j);
       if(i!=0){
 	hEvt_Multi[i][j]->Write();
 	hEvt_MultidX_d[i][j]->Write();
@@ -1771,8 +1466,6 @@ void Analysis::WriteHistograms(){
 
 
     }
-    //  if(hEvt_MultiSide[i]) hEvt_MultiSide[i]->Write();
-    //    printf("wrote tthre %i ..... \n", i);
     
     if(i>0){
       hEvt_ExEy[i]->Write();
@@ -1781,8 +1474,6 @@ void Analysis::WriteHistograms(){
       hEvt_XY[i]->Write();
 
       hEvt_ExEy_d[i]->Write();
-      //      hEvt_X_d[i]->Write();
-      //      hEvt_Y_d[i]->Write();
       hEvt_XY_d[i]->Write();
 
 
@@ -1806,9 +1497,6 @@ void Analysis::WriteHistograms(){
 
   }
 
-  //  printf("wrote 3..... \n");
-
-  
   hEvt_TmStpDist[1]->Write();
   hEvt_TmStpDist[0]->Write();
   hEvt_TmStpDist[2]->Write();
@@ -1843,18 +1531,13 @@ void Analysis::WriteHistograms(){
   cADCdisc[0]->Write();
   cEall[0]->Write();
   cADClow[1]->Write();
-  //  cADChigh[1]->Write();
-  //  cADCdisc[1]->Write();
   cEall[1]->Write();
   cTimeDist[0]->Write();
 
   cEvtE1->Write(); 
-  //  cEvtE2->Write(); 
   cEvtXY->Write();
   cEvtdXdY->Write();
   cEvtMulti->Write();
-  //  cEvtHits->Write();
-  //  cEvtTS->Write();
 
   cEvtE_d->Write();
   cEvtXY_d->Write();
@@ -1904,7 +1587,6 @@ void Analysis::ResetHistograms(){
     
     for(int i=0; i<4;i++){
       for(int j=0;j<2;j++){
-	//  if(i!=0 || j!=1) hEvt_Eside[i][j]->Reset();
 	hEvt_Eside[i][j]->Reset();
 	hEvt_Eside_if[i][j]->Reset();
 	hEvt_Eside_df[i][j]->Reset();
@@ -1917,8 +1599,6 @@ void Analysis::ResetHistograms(){
 	  
 	}
       }
-      //  if(hEvt_MultiSide[i]) hEvt_MultiSide[i]->Reset();
-      //printf("wrote two %i ..... \n", i);
       
       if(i>0){
 	hEvt_ExEy[i]->Reset();
@@ -1926,8 +1606,6 @@ void Analysis::ResetHistograms(){
 	hEvt_Y[i]->Reset();
 	
 	hEvt_ExEy_d[i]->Reset();
-	//      hEvt_X_d[i]->Reset();
-	//      hEvt_Y_d[i]->Reset();
       }
       
       hEvt_ExEy_if[i]->Reset();
@@ -1936,8 +1614,6 @@ void Analysis::ResetHistograms(){
       hEvt_XY_df[i]->Reset();
       hEvt_ExEy_df2[i]->Reset();
       hEvt_XY_df2[i]->Reset();
-      
-      //printf("wrote two..... \n");
       
       if(i<3){
 	hEvt_dX[i]->Reset(); // 1:2, 1:3, 2:3
@@ -1948,11 +1624,7 @@ void Analysis::ResetHistograms(){
 	hEvt_XY_d[i]->Reset();
 	
       }
-      //printf("wrote two..... %i \n", i);
-      
     }
-    
-    //  printf("wrote 3..... \n");
     
     
     hEvt_TmStpDist[1]->Reset();
@@ -1982,34 +1654,6 @@ void Analysis::ResetHistograms(){
     
     hEvt_EPulser_d->Reset();
     
-    /************ reset *************
-  TH1I * hEvt_Eside_d[4][2];
-  //TH1I * hEvt_Eaida;
-  //TH1I * hEvt_Eaida_gE;
-  //TH1I * hEvt_Eaida_gX;
-
-  TH2I * hEvt_ExEy_d[4]; //
-  TH2I * hEvt_ExEy_sum_d[4]; //
-
-  TH1I * hEvt_EPulser_d;
-  
-  TH1I * hEvt_X_d[4];
-  TH1I * hEvt_Y_d[4];
-  TH1I * hEvt_dX_d[4]; // 1:2, 1:3, 2:3
-  TH1I * hEvt_dY_d[4];
-
-  TH2I * hEvt_XY_d[4];
-  //  TH2I * hEvt_dXdX;
-  //  TH2I * hEvt_dYdY;
-
-  TH1I * hEvt_MultiDet_d; //how many detectors have decay info
-  TH2I * hEvt_MultiSide_d[4]; //how many sides have decay info (with implant, det==1, det>1)
-  TH1I * hEvt_MultiStrip_d[4][2]; //how many strips have decay data ()
-
-  TH2I * hEvt_MultidX_d[4][2]; // dX/dY vs multiplicity (side)
-
-  TH2I * hEvt_MultiID;
-  ****************************************/
 
     std::cout << "        Analysis::ResetHistograms(): all histograms have been reset..." << std::endl;
   }

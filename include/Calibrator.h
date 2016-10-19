@@ -4,13 +4,10 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-
-
 #include <TFile.h>
 #include <TTree.h>
 #include <TCanvas.h>
 #include <TH2I.h>
-
 #include "Unpacker.h"
 #include "Common.h"
 
@@ -25,9 +22,7 @@ class Calibrator{
   bool b_push_data;
   bool b_fill_tree;
 
-  //TFile * out_file_root;
   TTree * out_root_tree;
-
 
   // ----- correlations in time of different types -----
   unsigned long tm_stp_disc[common::N_FEE64][common::N_CHANNEL]; //latest disc tm stp!
@@ -37,15 +32,11 @@ class Calibrator{
   static const int n_update= 10000000;
 
 
- 
-
   //-----------------------------------------------
   //   BEGIN PARAMETERS
   //-----------------------------------------------
   //
-  // ----- parameters: Set/(Get?) should be private functions and only performed once when initializing step -----
   // ++ mask modules & channels ++
-  //  bool b_mod_enabled[common::N_FEE64]; 
   bool b_ch_enabled[common::N_FEE64][common::N_CHANNEL];
   // ++ geometry of stack ++
   int map_dssd[common::N_FEE64]; //module -> DSSD
@@ -56,18 +47,16 @@ class Calibrator{
   double adc_offset[common::N_FEE64][common::N_CHANNEL];
   double adc_gain[common::N_FEE64][common::N_CHANNEL];
   double adc_gain_highE[common::N_FEE64]; //20GeV range: for now use simple calibration.
-
   int disc_time_window;
   double aida_time_calib;
   //-----------------------------------------------
   //   END PARAMETERS
   //-----------------------------------------------
 
-  //ch enables, ch valid.....???
+  //ch enables, ch valid.....
   bool b_enabled; //if c hannel is not masked 
   bool b_valid_ch; //if .... we have set the channels for this data bit?
   bool b_corr_status; //
-  //  bool b_corr_offset;  //keep info if we have data of correlation scaler for synchronization
 
   // !!!------------------------------------!!!
   //
@@ -93,7 +82,6 @@ class Calibrator{
     unsigned char data_type;
     unsigned char info_code;
 
-    //    bool sync_flag; //... should always be true... (?)... so remove; if false data is useless and will not be recorded?
     bool corr_flag; //if we have a good calculation of offset EXT->AIDA
     bool disc_flag; //if we have good DISC value for ADC hit
 
@@ -108,11 +96,8 @@ class Calibrator{
   TH2I *hCalEhCh[16];
   TH2I *hCalElCh[16];
 
-
   Calibrator();
   ~Calibrator(){};
-
-
 
   void InitCalibrator(int opt, char *file_name); //
   void Process(Unpacker & my_unp_data);
@@ -125,13 +110,11 @@ class Calibrator{
   void ResetHistograms();
   bool IsValidChannel(int module, int channel);
   void Update();
-  //  void SetCanvas2(TCanvas * canvas);
 
   void ResetData();
   void Write();
 
   //get and set: which ones!
-
   bool SetGeometry();
   void CalibrateAdc();
   unsigned char OrderChannel( unsigned char ch );
@@ -146,11 +129,9 @@ class Calibrator{
   void SetBEnabled(bool flag); //forget for now...
   void SetBValidCh(bool flag);
   void SetBCorrStatus(bool flag);
-  //void SetBCorrOffset(bool flag);
 
   void SetTmStpDisc(unsigned long value);
   void SetTmStpOffset(int64_t value); //time difference AIDA->EXTERNAL
-
 
   //Setters... for cal_data structure
   void SetTimeAida(double value);
@@ -169,8 +150,6 @@ class Calibrator{
   void SetDataType(unsigned char value);
   void SetInfoCode(unsigned char value);
 
-  //  void SetSyncFlag(bool value);
-  //  void SetCorrFlag(bool value);
   void SetCorrFlag();
   void SetDiscFlag(bool value);
 
@@ -185,7 +164,6 @@ class Calibrator{
   bool GetBEnabled();
   bool GetBValidCh();
   bool GetBCorrStatus();
-  //bool GetBCorrOffset();
 
   unsigned long GetTmStpDisc();
   int64_t GetTmStpOffset();
@@ -208,13 +186,7 @@ class Calibrator{
   unsigned char GetInfoCode();
 
   bool GetCorrFlag();
-  //  bool GetSyncFlag();
   bool GetDiscFlag();
-
-
-
-
-
 
 };
 

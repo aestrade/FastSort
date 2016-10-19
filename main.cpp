@@ -70,7 +70,7 @@ int main  (int argc, char **argv){
 
   bool b_Xfer= false;
 
-  std::string DataDir= "/Disk/ds-sopa-group/np/RIKEN/May2015/"; 
+  std::string DataDir= "/home/alfredo/AIDA/"; 
 
   bool b_root_file= false;
 

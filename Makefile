@@ -29,9 +29,9 @@ CFLAGS 		+= $(ROOTCFLAGS)
 LDFLAGS 	+= $(ROOTLDFLAGS) $(ROOTLIBS)
 
 #INCLUDES=  -I/MIDAS/DataPackage/DataXferLib/V4_TCP -I/MIDAS/DataPackage/DataSpyLib
-INCLUDES=  -I/Disk/ds-sopa-group/np/RIKEN/AIDAsort/DataXferLib/V4_TCP -I/Disk/ds-sopa-group/np/RIKEN/AIDAsort/DataSpyLib
+INCLUDES=  -I/usr/local/DataXferLib/V4_TCP -I/usr/local/DataSpyLib
 #INCLUDES=  -I../../DataSpyLib/Linux64
-LDLIBS=   -L/usr/ucblib -lrt -lpthread -L/Disk/ds-sopa-group/np/RIKEN/AIDAsort/MIDAS/Linux/lib64 -lxfer -ldataspy
+LDLIBS= -L/usr/local/MIDAS/Linux/lib64 -lxfer -ldataspy
 #LDLIBS=   -L/usr/ucblib -lrt -lpthread -L/MIDAS/Linux/lib64  -ldataspy
 
 # The object files.
