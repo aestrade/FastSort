@@ -64,28 +64,7 @@ class Calibrator{
   // of output_root_tree Branch in InitCalibrator()
   //
   // !!!-------------------------------------!!!
-  struct calib_data_struct{
-
-    double time_aida;
-    double time_disc;
-    double time_external;
-    double adc_energy;
-
-    int adc_data;
-    int dssd;
-    int strip;
-
-    unsigned char adc_range;
-    unsigned char side;
-    unsigned char module;
-    unsigned char channel;
-    unsigned char data_type;
-    unsigned char info_code;
-
-    bool corr_flag; //if we have a good calculation of offset EXT->AIDA
-    bool disc_flag; //if we have good DISC value for ADC hit
-
-  } cal_data;
+  common::calib_data_struct cal_data;
 
 
  public:
@@ -188,6 +167,7 @@ class Calibrator{
   bool GetCorrFlag();
   bool GetDiscFlag();
 
+  common::calib_data_struct GetStruct();
 };
 
 

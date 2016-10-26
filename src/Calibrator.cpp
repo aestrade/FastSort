@@ -661,6 +661,7 @@ unsigned char Calibrator::GetInfoCode(){ return cal_data.info_code; }
 bool Calibrator::GetCorrFlag(){ return cal_data.corr_flag; }
 bool Calibrator::GetDiscFlag(){ return cal_data.disc_flag; }
 
+common::calib_data_struct Calibrator::GetStruct(){ return cal_data; }
 
 
 

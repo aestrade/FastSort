@@ -31,6 +31,8 @@ void DataSource::Close(){
   }
 
   //if data Xfer going on... close with transferMultiClose()??
+
+  testFile.close();
 }
 
 
@@ -320,6 +322,9 @@ void DataSource::InitDataSource(int opt, int my_id, std::string &file_name, bool
     SetBSendData(true);
 
   }
+
+  //FS-FS
+  testFile.open("testOutFS.bin", std::ios::out | std::ios::binary);
 }
 
 
@@ -369,6 +374,40 @@ void DataSource::TransferBuffer(double ts){
 
 }
 
+
+//FS-FS
+void DataSource::WriteBuffer(){
+
+
+  //is 'ts' a timestamp? what for?
+  //  if(GetBuffOffset() > MAX_LENGTH_DATA | ts > (ts_0 + DELTA_TS )){
+  if(GetBuffOffset() > MAX_LENGTH_DATA ){
+    int s;
+
+    //buffer lenght... calculate useful data... and add a few 0xfffffff if required
+    BufferLength= GetBuffOffset();
+
+    int empty= MAIN_SIZE - BufferLength;
+
+    // add 0xFFFFFFFFFFFFFFFFFFFFFFFF at end
+    for(int i=0;(i<24 && i< empty);i++){
+	BufferOut[BufferLength]= 0xFF;
+	BufferLength++;
+      }
+
+    //FS-FS: this now write to file...
+    //    s = transferMultiTxData (ID, &BufferOut[sizeof(HEADER)], stream, /*my_length*/ BufferLength);   /*   write data from offset 32 bytes  */
+    testFile.write( BufferOut, 64+(64*1024) ); //???
+
+    //FS    if (b_debug) printf("Transfer: code %u, ts %f (0x%f). %u  bytes of data.\n", s, ts, ts, buff_offset);
+    
+    //FS    ts_0= ts;
+    SetBuffOffset(HEADER_SIZE+8); //Initnal offset to take into account header....
+  }
+
+  return;
+
+}
 
 
 

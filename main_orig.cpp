@@ -76,8 +76,6 @@ int main  (int argc, char **argv){
 
   int RLrun= -1; int RLfirst= 0; int RLnum= 0;
 
-  int NMAX= 3000000; //limit number of data items to loop through
-
 
   // Loop to read command line arguments
   if (argc >1) {
@@ -163,10 +161,6 @@ int main  (int argc, char **argv){
 
 	case 'v':
 	  b_verbose = true;
-	  break;
-
-	case 'N':
-	  NMAX = atoi(argv[++i]);
 	  break;
 
 
@@ -277,7 +271,7 @@ int main  (int argc, char **argv){
     if(midas_data.GetBSourceOpen()){
       //    std::cout << "begin forever looop"<<std::endl;
       
-      for(int NNN=0; NNN < NMAX; ++NNN){
+      for(;;){
 	
 	//to pause loop and take a moment to reflect on the beauty of our planet and histograms 
 	/************

@@ -7,89 +7,99 @@
 //the heart of the matter
 void Analysis::Process(DataSource & my_source, Calibrator & my_cal_data){
 
-  //channel will be set to default values for some bits of data where they don't apply (SYNC pulse)
-  //-FS   if(GetBHistograms()) FillHistogramsSingles(my_cal_data);
 
-  //if end of this event
-  if( BuildEvent(my_cal_data) ){
+  //my_cal_data.time_aida might change name...
+  if( my_cal_data.GetTimeAida() > ( evt_data.t + event_time_window) ){
 
-    if(GetMultiplicity()>0){
-       CloseEvent();
-
-      /**************
-      if(b_debug){
-	PrintEvent();
-      }
-      *****************/
-
-      //-FS if(GetBHistograms()) FillHistogramsEvent();
-
-      if(my_source.GetBSendData()) WriteOutBuffer(my_source);
-    }
+    CloseEvent();
+    WriteOutBuffer(my_source);
+    //    if(my_source.GetBSendData()) WriteOutBuffer(my_source);
     InitEvent(my_cal_data);
+    //    return true; //time to start a new event
   }
+  
+  else{
+
+    //if same range as current event
+    if(my_cal_data.GetAdcRange()== event_range){
+      q.push(my_cal_data.GetStruct());
+    }
+    //if event labeled as decay, but found implant data
+    else if(my_cal_data.GetAdcRange() == 1){
+      event_range = 1; //change to implant type of event
+      q.push(my_cal_data.GetStruct());
+    }
+    //if decay event for implant data, skip
+    else {
+      std::cout << " \n---- skipping decay hit within implantation event ---- " << std::endl;
+    }
+    
+    std::cout << "CAL (dssd, ch, E, T): " << my_cal_data.GetDSSD() << " " <<my_cal_data.GetStrip() << " "
+	      << my_cal_data.GetAdcEnergy() << " " << my_cal_data.GetTimeAida() << std::endl; 
+  }
+
+
+
 }
 
 //the real heart of the matter
 bool Analysis::BuildEvent(Calibrator & my_cal_data){
 
-  if(!my_cal_data.GetAdcRange() && !my_cal_data.GetModule()==30) return false; //skip low energy range of NNAIDA#30
+  return false;
+
+  //-FS  if(!my_cal_data.GetAdcRange() && !my_cal_data.GetModule()==30) return false; //skip low energy range of NNAIDA#30
  
-  if(!IsChEnabled(my_cal_data)) return false; //skip channels not enabled
+  //-FS: should have been checked already:  if(!IsChEnabled(my_cal_data)) return false; //skip channels not enabled
 
   //continue if good data type to create event...
 
-  //consider windows backwards and forwards in time
+  //consider windows backwards and forwards in time?
   //  if(my_cal_data.GetDiscFlag()){
-  if(0){
-    if( my_cal_data.GetTimeDisc() > ( evt_data.t0 + event_time_window)
-	|| my_cal_data.GetTimeDisc() < ( evt_data.t0 - event_time_window) ){
 
-      return true;
-    }
-  }
-  else  if( my_cal_data.GetTimeAida() > ( evt_data.t0 + event_time_window)
-     || my_cal_data.GetTimeAida() < ( evt_data.t0 - event_time_window) ){
-    
-    return true; //time to start a new event!
-  }
-
+  //FS; only consider forward in time... for now.
+  
+  //////  if( my_cal_data.GetTimeAida() > ( evt_data.t + event_time_window) ){
+  //////  return true; //time to start a new event
+  //////}
+  
   //If good data to add to current event....
 
-  //  if(my_cal_data.GetDiscFlag()){
-  //    evt_data.dt= my_cal_data.GetTimeDisc() - evt_data.t0; //assume monotonically increasing tm-stps
-  //  }
-  //  else{
-  evt_data.dt= my_cal_data.GetTimeAida() - evt_data.t0; //assume monotonically increasing tm-stps
-    //  }
 
+  //FS: nice to look for dt, but not here...:  evt_data.dt= my_cal_data.time_cluster - evt_data.t; //assume monotonically increasing tm-stps
 
+  //FS.... move all this for Close event! USE QUEUE!!
+  //////q.push(my_cal_data.GetStruct());
+
+  //////std::cout << "CAL (DSSD, ch, E): " << my_cal_data.GetDSSD() << " "
+  //////    << my_cal_data.GetStrip() << " " << my_cal_data.GetAdcEnergy() << std::endl; 
+
+  /**********
   int det= my_cal_data.GetDSSD();
   int strip= my_cal_data.GetStrip();
   int side= my_cal_data.GetSide();
-  int energy;
-  int range = my_cal_data.GetAdcRange();
-
+  double energy= my_cal_data._adc_energy; //FS: why this does not exist?: GetEnergy();
+  //FS:out: int range = my_cal_data.GetAdcRange();
+  *******************/
 
   //-FS: this should go away, is remmand of using one FEE for MUSIC/TAC in 2015 test
-  if(det>0 ){
-    if(side==0) energy= my_cal_data.GetAdcData() - common::ADC_ZERO;
-    else if(side==1) energy = common::ADC_ZERO - my_cal_data.GetAdcData();
-  }
-  else if (det==0) energy = common::ADC_ZERO - my_cal_data.GetAdcData();
+  //  if(det>0 ){
+  //   if(side==0) energy= my_cal_data.GetAdcData() - common::ADC_ZERO;
+  //  else if(side==1) energy = common::ADC_ZERO - my_cal_data.GetAdcData();
+  // }
+  //else if (det==0) energy = common::ADC_ZERO - my_cal_data.GetAdcData();
     
       
-  evt_data.multiplicity++;
+  //FS: later?  evt_data.n++;
     
-    
+  /************** FS: now queueue ******************8    
   //IMPLANT IMPLANT IMPLANT
-  if(range == 1){
-    evt_data.n_det_i[det]= evt_data.n_det_i[det]+1;
-    evt_data.n_side_i[det][side]= evt_data.n_side_i[det][side]+1;
+  if(my_cal_data.GetAdcRange() == 1){
+    multiplicity[det][side]= multiplicity[det][side]+1;
+    energy_implant[det][side]= energy_implant[det][side]+energy;
     
     //if new max value for E of this event
-    if(energy>evt_data.e_i[det][side]){
-      evt_data.e_i[det][side]= energy;
+    if(energy>max_energy_implant[det][side]){
+      max_energy_implant[det][side]= energy;
       if(side==0) evt_data.y_i[det]= strip; //n-side: horizontal strips
       else if(side==1) evt_data.x_i[det]= strip; //p-side: vertical strips
     }
@@ -115,7 +125,7 @@ bool Analysis::BuildEvent(Calibrator & my_cal_data){
       }
     }
   }
-  
+  ***********************/
     
     
     
@@ -139,25 +149,134 @@ bool Analysis::BuildEvent(Calibrator & my_cal_data){
 
 void Analysis::CloseEvent(){
 
-  
+  //FS: this function will be called also for first entrie... when previous event has size zero!
+
+  int Nend= q.size();
+
+  //FS: reset to zero!!!!
+  //considering only one type (implants or decay)
+  int n_hits[common::N_DSSD][2]={{0}};
+  double energy[common::N_DSSD][2]={{0}};
+  //double energy_decay[common::N_DSSD][2]={{0}};
+  double max_energy[common::N_DSSD][2]={{0}};
+  //double max_energy_decay[common::N_DSSD][2]={{0}};
+
+  int min_ch[common::N_DSSD][2]; //for dX of strips
+  int max_ch[common::N_DSSD][2]={{0}};
+  //int min_ch_d[common::N_DSSD][2];
+  //int max_ch_d[common::N_DSSD][2]={{0}};
+  int ch_max_e[common::N_DSSD][2]={{0}};
+
+  for(int i=0; i<common::N_DSSD;i++){
+    min_ch[i][0]=999;
+    min_ch[i][1]=999;
+  }
+
+  for(int i=0; i< Nend ; i++){
+
+    common::calib_data_struct cal;
+    cal= q.front();
+
+    std::cout << "QUE (det, ch, E, T): " << cal.dssd << "  "<<cal.strip << " "
+	      << cal.adc_energy << " " << cal.time_aida << std::endl; 
+
+    q.pop();
+
+    //skip decay range hit within implantation events
+    if( !(cal.adc_range==0 && event_range==1) ){
+      n_hits[cal.dssd][cal.side]= n_hits[cal.dssd][cal.side];
+      energy[cal.dssd][cal.side]= cal.adc_energy;
+      if(cal.adc_energy>max_energy[cal.dssd][cal.side]){
+	max_energy[cal.dssd][cal.side]= cal.adc_energy;
+	ch_max_e[cal.dssd][cal.side]= cal.strip;
+      }
+      if(cal.strip<min_ch[cal.dssd][cal.side]) min_ch[cal.dssd][cal.side]= cal.strip;
+      if(cal.strip>max_ch[cal.dssd][cal.side]) max_ch[cal.dssd][cal.side]= cal.strip;
+
+      n_hits[cal.dssd][cal.side]= n_hits[cal.dssd][cal.side];
+      n_hits[cal.dssd][cal.side]= n_hits[cal.dssd][cal.side];
+
+    }
+
+
+  }
+  std::cout << "*----------------------------------------------------------------*" << std::endl;
+
+  if(!q.empty()){
+    std::cout << "\n*********************\n"
+	      << " --- Analysis::CloseEvent(): ERROR - q should have been empty! "
+	      << " ------> size: " << q.size() 
+	      << "\n*********************" << std::endl;
+
+  }
+
+  /// ACA PIBE COMIENZA LA COCOA TODA!
+  int det0, det1;
+  double e0=0;
+  double e1=0;
+  int delta0, delta1;
+  int n_det=0;
+  // int n_det1=0;
+
+  //find detectors with largest energy measured for X and Y sides
+  for(int i=0; i< common::N_DSSD; i++){
+    if(energy[i][0]>= e0){
+      det0= i; e0= energy[i][0];
+    }
+    if(energy[i][1]>= e1){
+      det1= i; e1= energy[i][1];
+    }
+
+    if(n_hits[i][0]>0 || n_hits[i][1]>0) ++n_det;
+  }
+
+  delta0= max_ch[det0][0]-min_ch[det0][0];
+  delta1= max_ch[det1][1]-min_ch[det1][1];
+
+
+  //if nothing fishy going on (both sides of same detector)
+  if(det0==det1){
+    if( n_hits[det0][0] <= p_N_MAX[event_range] && n_hits[det0][1] <= p_N_MAX[event_range] ){
+      //extra conditions: 
+      //    delta < n_hits + DMAX
+      //    multiplicity detectors... or for implants, last with hits
+      //evt_data= cal.time_disc; //THIS MUST BE SET AT INIT?
+      evt_data.e_x= energy[det0][0];
+      evt_data.e_y= energy[det0][1];
+      evt_data.e= 0.5*(evt_data.e_x+evt_data.e_y);
+      evt_data.x= ch_max_e[det0][0];
+      evt_data.y= ch_max_e[det0][1];
+      evt_data.z = det0;
+
+      //FS: here add more stringent conditions...
+      //beta
+      if( event_range==0){
+	//not too many DSSDs with hits...
+	if(n_det <= p_N_DET_MAX) evt_data.type = 5;
+      }
+      //ion
+      else evt_data.type = 4;
+    }
+
+  }
+  else{
+
+  }
+
+
+
+  /********************* FS comment! *************  
   int NmaxI=4;
   int EminI=500;
   int N_max_decay=4;
 
 
   //IMPLANTS IMPLANTS
-
-  //IMPLANTS IMPLANTS
-  // Det#1  Det#1  Det#1
-  /******* HV tripped: no Det#1 in later parts of beam test *********/
   if(evt_data.n_side_i[1][0]>0 && evt_data.n_side_i[1][1]>0){
-
     //N det2 and det3 are zero
     if( evt_data.n_det_i[2]==0 && evt_data.n_det_i[3]==0 ){
-      
       //... small cluster (after implementing strip_min/max_i[][]) ....
       if( evt_data.n_side_i[1][0]<NmaxI && evt_data.n_side_i[1][1]<NmaxI ){
-	
 	//some minimum energy deposition (using Emax only for now)
 	if(evt_data.e_i[1][0]>EminI && evt_data.e_i[1][1]>EminI){
 	  evt_data.implant_flag= 1;
@@ -165,29 +284,18 @@ void Analysis::CloseEvent(){
       }
     }
   }
-  /****************************************************************/
+
 
   // Det#2  Det#2  Det#2
   if(evt_data.n_side_i[2][0]>0 && evt_data.n_side_i[2][1]>0){
-
-    //N det3 is zero, and 1 has XY
-    //    if(evt_data.n_det_i[3]==0 && evt_data.n_side_i[1][0]>0 && evt_data.n_side_i[1][1]>0){
     if(evt_data.n_det_i[3]==0){
-
-      //dX(12) is ok
-      // if( (evt_data.x_i[2]-evt_data.x_i[1])< dX_i_lim && (evt_data.y_i[2]-evt_data.y_i[1])<dX_i_lim){
-
 	//... small cluster (after implementing strip_min/max_i[][]) ....
 	if( evt_data.n_side_i[2][0]<NmaxI && evt_data.n_side_i[2][1]<NmaxI ){
-	
 	  //some minimum energy deposition (using Emax only for now)
 	  if(evt_data.e_i[2][0]>EminI && evt_data.e_i[2][1]>EminI){
-	    
 	    evt_data.implant_flag= 2;
-	    	    
 	  }
 	}
-	//} //dX12
     }
   }
  
@@ -196,16 +304,11 @@ void Analysis::CloseEvent(){
   // Det#3  Det#3  Det#3
   if(evt_data.n_side_i[3][0]>0 && evt_data.n_side_i[3][1]>0){
 
-    //det1 and det2 have N>1
-    //    if(evt_data.n_det_i[1]>1 && evt_data.n_det_i[2]>1){ //vt_data.n_side_i[1][1]>0){
     if(evt_data.n_det_i[2]>1){ //vt_data.n_side_i[1][1]>0){
-
       //dX(23) is ok
       if( (evt_data.x_i[3]-evt_data.x_i[2])< dX_i_lim && (evt_data.y_i[3]-evt_data.y_i[2])<dX_i_lim){
-
 	//... small cluster (after implementing strip_min/max_i[][]) ....
 	if( evt_data.n_side_i[3][0]<NmaxI && evt_data.n_side_i[3][1]<NmaxI ){
-	
 	  //some minimum energy deposition (using Emax only for now)
 	  if(evt_data.e_i[3][0]>EminI && evt_data.e_i[3][1]>EminI){
 	    evt_data.implant_flag= 3;
@@ -228,7 +331,6 @@ void Analysis::CloseEvent(){
   //DECAYS DECAYS
   if(!b_pulser && evt_data.implant_flag==0){
     //Det#2 Det#2 Det#2
-    //    for(int det=1;det<4;det++){
     int det=2;
 
     if(evt_data.n_side_d[det][0]>0 && evt_data.n_side_d[det][1]>0 && evt_data.n_side_d[det][0]<=N_max_decay && evt_data.n_side_d[det][1]<=N_max_decay){
@@ -315,7 +417,7 @@ void Analysis::CloseEvent(){
     }
 
   }
-
+  ******************************************************/
 }
 
 
@@ -323,6 +425,12 @@ void Analysis::InitEvent(Calibrator & my_cal_data){
     
   ResetEvent();
 
+  evt_data.t= my_cal_data.GetTimeAida(); //FS: THIS MUST BE GET TIME CLUSTER>>> LATER
+  evt_data.t_fast= my_cal_data.GetTimeAida(); //FS: THIS MUST BE GET TIME CLUSTER FAST>>> LATER
+
+  event_range= 0; //assume this is a decay event
+
+  /********************** FS ***********************8
   //check again just in case we're trying to initialize with wrong data
   if(!my_cal_data.GetAdcRange() || !IsChEnabled(my_cal_data)){
     evt_data.t0= -9999999; //bogus timestamp... should take care of things
@@ -338,8 +446,9 @@ void Analysis::InitEvent(Calibrator & my_cal_data){
     evt_data.t0_ext= my_cal_data.GetTimeExternal();
 
   }
-
-  BuildEvent(my_cal_data);
+  *************************************************/
+  //FS: BuildEvent is defunct now...
+  //  BuildEvent(my_cal_data);
 
 }
 
@@ -354,6 +463,22 @@ void Analysis::WriteOutBuffer(DataSource & my_source){
 
   int32_t aida_id= 0xA1DA;
 
+  // FS: debug values for output
+  evt_data.t=0;
+  evt_data.t_fast=0xAABBCCDD;
+  evt_data.e= 1;
+  evt_data.e_x=2;
+  evt_data.e_y=3;
+  evt_data.x=4;
+  evt_data.y=5;
+  evt_data.z=6;
+
+  evt_data.type= 0xEE;
+  //  evt_data.t0_ext= 0xAAA2;
+  //evt_data.dt= 0xAAA3;
+  //  evt_data.multiplicity= 0xBBBB;
+
+  //FS: debug values for output
   memcpy(my_source.BufferOut+offset, (char*) &aida_id, sizeof(int32_t) );
   memcpy(my_source.BufferOut+offset+sizeof(int32_t), (char*) &evt_data, sizeof(evt_data) );
 
@@ -377,7 +502,8 @@ void Analysis::WriteOutBuffer(DataSource & my_source){
 
  
   my_source.SetBuffOffset(offset);
-  my_source.TransferBuffer(evt_data.t0);
+  my_source.WriteBuffer();
+  //  my_source.TransferBuffer(evt_data.t);
 
   return;
 
@@ -393,6 +519,7 @@ void Analysis::FillHistogramsSingles(Calibrator & my_cal_data){
   int side= my_cal_data.GetSide();
   int range= my_cal_data.GetAdcRange();
 
+  /********
   if(b_debug) std::cout << " about to fill histograms-singles....mod= "<< mod << " range= "<<range  << std::endl;
 
   if(b_mod_enabled[mod]){
@@ -463,11 +590,13 @@ void Analysis::FillHistogramsSingles(Calibrator & my_cal_data){
     }
     else  hTimeStampFlag->Fill( 0 );
   }
-
+  ******************/
 }
 
 void Analysis::FillHistogramsEvent(){
 
+
+  /**********************
   double e_det[common::N_DSSD]={0};
   double e_aida=0;
   bool b_gE= true;
@@ -643,11 +772,13 @@ void Analysis::FillHistogramsEvent(){
     if(b_debug) std::cout << "db     Analysis::FillHistrgramsEvent():   done with evt_decay (multi="<<multi_d<<")"<< std::endl;
   }
 
+  *************************/
 }
 
 
 void Analysis::UpdateHistograms(){
 
+  /****************
   if(GetBHistograms()){
     std::cout << "  Analysis::UpdateHistograms()... updating"<<std::endl;
 
@@ -700,12 +831,17 @@ void Analysis::UpdateHistograms(){
   cEvtXY2_d->Update();
   cEvtMulti_d->Update();
   }
+  ******************/
 }
 
 
 
 
 void Analysis::InitAnalysis(int opt){
+
+
+  std::cout << "\n\nINIT ANALYSIS: queue size: " << q.size() << std::endl;
+  evt_data.t = 0;
 
   event_count= 0;
   t_low_prev= 0;
@@ -828,6 +964,10 @@ void Analysis::InitAnalysis(int opt){
 
   // if first of 'opt' is 1, enable histogramming
   if( (opt & 0x01) == 1){
+
+    std::cout << "\n *** Analysis:InitAnalysis(): NO HISTOGRAMS IMPLEMENTED IN THIS VERSION (FastSort) ***\n\n";
+
+    /**************** FS FS ******
     char hname[256];
     char htitle[256];
     std::string stitle;
@@ -855,8 +995,6 @@ void Analysis::InitAnalysis(int opt){
       cADClow[1]= new TCanvas(hname, hname, 10,10,1800,1000); cADClow[1]->Divide(8,4);
 
 
-      //  }
-
     for(int i=0;i<common::N_FEE64;i++){
       if(b_mod_enabled[i]){
 
@@ -870,10 +1008,6 @@ void Analysis::InitAnalysis(int opt){
 	  std::cout << " **** Analysis::InitAnalysis(): ERROR IN GEOMETRY"<<
 	    "\n        mod, det, side, strip: " << i << " " << geo_detector[i]<< " "<< geo_side[i]<< " "<< "  "<<geo_strip[i]<< std::endl;
 	}
-	//-----------------------------
-	// ----- ADC singles
-	//
-
 
 
 	// ADC(decay range)
@@ -982,7 +1116,7 @@ void Analysis::InitAnalysis(int opt){
     sprintf(htitle,"#Deltat ts !ADC(high);time stamp difference");
     hTimeADChigh[0]= new TH1I(hname, htitle, 1000, -500, 9500);
     cTimeDist[0]->cd(3); hTimeADChigh[0]->Draw(""); gPad->SetLogy(1);
-    //}
+
 
     hTimeStamp= new TH1I("hTimeStamp","Time stamp;tmstp [1/1e6]",1000,0,1e5);
 
@@ -1341,7 +1475,7 @@ void Analysis::InitAnalysis(int opt){
 
 
     if(b_debug) std::cout << "db    Analysis.cpp: Initialized histograms and canvas for this step"<<std::endl;
-
+********************************/
 
     
   }
@@ -1361,7 +1495,8 @@ void Analysis::InitAnalysis(int opt){
 void Analysis::ResetEvent(){
 
 
-  //  b_implant_det2= false;
+  //FS: all zero!!!
+  /***********************
   b_pulser= false;
 
   evt_data.multiplicity= 0;
@@ -1412,12 +1547,13 @@ void Analysis::ResetEvent(){
   hit.ex= -1;
   hit.ey= -1;
   hit.flag= -1;
-  
+  **************************/
 }
 
 
 void Analysis::WriteHistograms(){
 
+  /*********************************
   for(int i=0;i<common::N_FEE64;i++){
     if(b_mod_enabled[i]){
       hADClowCh[i]->Write();
@@ -1546,7 +1682,7 @@ void Analysis::WriteHistograms(){
 
   std::cout << "\n done writing Analysis histograms to file..." << std::endl;
 
-
+  *************************/
 }
 
 
@@ -1554,6 +1690,9 @@ void Analysis::WriteHistograms(){
 
 void Analysis::ResetHistograms(){
 
+
+  std::cout << " *** Analysis::ResetHistograms() - NO HISTOGRAMS IMPLEMENTED in FastSort, WE SHOULD NOT CALL THIS FUNCTION *** \n" << std::endl;
+  /****************** FS FS ***********8
   if(GetBHistograms()){
 
     for(int i=0;i<common::N_FEE64;i++){
@@ -1572,9 +1711,6 @@ void Analysis::ResetHistograms(){
       }
     }
     
-    //printf("wrote two..... \n");
-    
-    //for(int i=1;i<4;i++){
     hTimeADClow[0]->Reset();
     hTimeADCdisc[0]->Reset();
     hTimeADChigh[0]->Reset();
@@ -1582,8 +1718,6 @@ void Analysis::ResetHistograms(){
     hTimeStamp->Reset();
     hTimeStampExt->Reset();
     hTimeStampFlag->Reset();
-    
-    //}
     
     for(int i=0; i<4;i++){
       for(int j=0;j<2;j++){
@@ -1596,7 +1730,6 @@ void Analysis::ResetHistograms(){
 	  hEvt_Multi[i][j]->Reset();
 	  hEvt_Eside_d[i][j]->Reset();
 	  hEvt_MultidX_d[i][j]->Reset();
-	  
 	}
       }
       
@@ -1657,6 +1790,7 @@ void Analysis::ResetHistograms(){
 
     std::cout << "        Analysis::ResetHistograms(): all histograms have been reset..." << std::endl;
   }
+  **************************/
 
 }
 
@@ -1702,6 +1836,7 @@ bool Analysis::SetEventTimeWindow(double value){
 
 void Analysis::PrintEvent(){
 
+  /*************
   printf("\n  *EVT*   Multiplicity : ");
   printf("\n  *EVT*        N total= %i",evt_data.multiplicity);
   printf("\n  *EVT*i       N det0=  %i  (%i, %i)",evt_data.n_det_i[0], evt_data.n_side_i[0][0], evt_data.n_side_i[0][1]);
@@ -1741,7 +1876,7 @@ void Analysis::PrintEvent(){
 
   if(evt_data.decay_flag)  printf("\n  *EVT*   Type:  decay \n");
   else printf("\n  *EVT*   Type:  implant \n");
-
+  **************/
 }
 
 
@@ -1784,7 +1919,8 @@ bool Analysis::GetBHistograms(){ return b_histograms; }
 //bool Analysis::GetBPushData(){ return b_push_data; }
 bool Analysis::GetBRootTree(){ return b_root_tree; }
 
-int Analysis::GetMultiplicity(){ return evt_data.multiplicity; }
+//fS
+int Analysis::GetMultiplicity(){ return 1; /*evt_data.multiplicity;*/ }
 
 
 
@@ -1805,24 +1941,31 @@ Analysis::Analysis(){
   t_high_prev= 0;
   t_disc_prev= 0;
 
-  event_time_window = 2500;
-  dE_i_lim= 2000;
-  dX_i_lim= 15;
-  E_i_min= 300;
+  event_time_window = 3200;
 
-  dE_d_lim= 3000;
-  dX_d_lim= 5;
-  E_d_min= 150;
-  E_d_max= 3000;
+  p_opt_tm_stp= 0;
+  p_N_MAX[0]=6;
+  p_N_MAX[1]=12;
+  p_DELTA_MAX=3;
+  p_N_DET_MAX=3;
 
-  evt_data.multiplicity= 0;
-  for(int i=0;i<common::N_DSSD;i++){
+  //dE_i_lim= 2000;
+  //dX_i_lim= 15;
+  //E_i_min= 300;
+
+  //dE_d_lim= 3000;
+  //dX_d_lim= 5;
+  //E_d_min= 150;
+  //E_d_max= 3000;
+
+  //FS:   evt_data.multiplicity= 0;
+  //for(int i=0;i<common::N_DSSD;i++){
     //
-    e_sum_d[i][0]=0;
-    e_sum_d[i][1]=0;
+    //    e_sum_d[i][0]=0;
+    //e_sum_d[i][1]=0;
     //
 
-
+    /*******
     evt_data.n_det_i[i]=0;  
     evt_data.n_side_i[i][0]=0;  
     evt_data.n_side_i[i][1]=0;  
@@ -1845,10 +1988,11 @@ Analysis::Analysis(){
 
     evt_data.t0= -99999;
     evt_data.t0_ext= -99999;
-    evt_data.dt= 0; 
-  }
-  evt_data.decay_flag= 0;
-  evt_data.implant_flag= 0;
+    evt_data.dt= 0;
+    *********/ 
+    //}
+  //  evt_data.decay_flag= 0;
+  //evt_data.implant_flag= 0;
 
   hit.t= -1;
   hit.t_ext= -1;

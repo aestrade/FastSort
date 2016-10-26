@@ -10,6 +10,9 @@
 #include "DataSource.h"
 #include "Common.h"
 
+//FS
+#include <queue>
+
 class Analysis{
  private:
 
@@ -20,7 +23,9 @@ class Analysis{
   TTree * out_root_tree;
 
   // ----- correlations in time of different types -----
-  static const int n_update= 10000000;
+  //  static const int n_update= 10000000;
+
+  std::queue<common::calib_data_struct> q;
 
   //-----------------------------------------------
   //   BEGIN PARAMETERS
@@ -31,23 +36,14 @@ class Analysis{
   int geo_detector[33]; // 0:3
   int geo_side[33]; // 0:3
   int geo_strip[33]; // 0:3
+
+  int p_opt_tm_stp;
   double event_time_window;
 
-  int dE_i_lim;
-  int dX_i_lim;
-  int dE_d_lim;
-  int dX_d_lim;
-  int E_i_min;
-  int E_d_min;
-  int E_d_max;
-
-  int strip_min_i[4][2]; //for dX of strips
-  int strip_max_i[4][2];
-  int strip_min_d[4][2];
-  int strip_max_d[4][2];
-
-  double e_sum_d[4][2];
-
+  int p_N_MAX[2];
+  int p_DELTA_MAX;
+  int p_N_DET_MAX;
+ 
   //-----------------------------------------------
   //   END PARAMETERS
   //-----------------------------------------------
@@ -59,12 +55,17 @@ class Analysis{
 
   bool b_pulser;
 
+  unsigned char event_range;
+
   // !!!------------------------------------!!!
   //
   // note: if new variables included, they must also be added to definition
   // of output_root_tree Branch in InitCalibrator()
   //
   // !!!-------------------------------------!!!
+
+  /**************** FS *************************
+  //FS: this is replaced by struct aida_event
   struct event_struct{
 
     int64_t e_i[4][2];
@@ -94,6 +95,7 @@ class Analysis{
     unsigned char implant_flag;
 
   } evt_data;
+  *********** FS ******************/
 
 
   struct dssd_hits{
@@ -107,8 +109,12 @@ class Analysis{
     int flag;
   } hit;
 
+
+  common::aida_event evt_data;
+
  public:
 
+  /************
   //-----ADC data singles
   TH2I * hADClowCh[common::N_FEE64];
   TH2I * hADCdiscCh[common::N_FEE64];
@@ -200,7 +206,7 @@ class Analysis{
   TH2I * hEvt_XY_d[4];
 
   TH1I * hEvt_MultiDet_d; //how many detectors have decay info
-  TH2I * hEvt_MultiSide_d[4]; //how many sides have decay info (with implant, det==1, /*det>1*/)
+  TH2I * hEvt_MultiSide_d[4]; //how many sides have decay info (with implant, det==1)
   TH1I * hEvt_MultiStrip_d[4][2]; //how many strips have decay data ()
 
   TH2I * hEvt_MultidX_d[4][2]; // dX/dY vs multiplicity (side)
@@ -229,7 +235,7 @@ class Analysis{
   TCanvas *cEvtXY2_d;
   TCanvas *cEvtMulti_d;
   TCanvas *cEvtHit_d;
-
+*****************/
 
   Analysis();
   ~Analysis(){};

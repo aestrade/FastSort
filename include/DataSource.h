@@ -38,6 +38,10 @@ class DataSource{
   double ts_0;
   double prev_ts;
 
+  //FS-FS
+  std::ofstream testFile;
+
+
   //static? all instances of class have same value, can be defined here
   static const int HEADER_SIZE=24; // Size of header in bytes
   static const int BLOCK_SIZE= 0x10000; //Max block size is 64kb. Amount of useful data given in header
@@ -117,6 +121,7 @@ class DataSource{
   void Close();
 
   void TransferBuffer(double ts);
+  void WriteBuffer();
 
 
   bool SetFileSize(int size);
