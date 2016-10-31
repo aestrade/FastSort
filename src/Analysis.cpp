@@ -11,8 +11,7 @@ void Analysis::Process(DataSource & my_source, Calibrator & my_cal_data){
   //my_cal_data.time_aida might change name...
   if( my_cal_data.GetTimeAida() > ( evt_data.t + event_time_window) ){
 
-    CloseEvent();
-    WriteOutBuffer(my_source);
+    if(CloseEvent()) WriteOutBuffer(my_source);
     //    if(my_source.GetBSendData()) WriteOutBuffer(my_source);
     InitEvent(my_cal_data);
     //    return true; //time to start a new event
@@ -30,12 +29,13 @@ void Analysis::Process(DataSource & my_source, Calibrator & my_cal_data){
       q.push(my_cal_data.GetStruct());
     }
     //if decay event for implant data, skip
-    else {
-      std::cout << " \n---- skipping decay hit within implantation event ---- " << std::endl;
-    }
+    //FS: too much time to cout
+    //    else {
+    //  std::cout << " \n---- skipping decay hit within implantation event ---- " << std::endl;
+    //}
     
-    std::cout << "CAL (dssd, ch, E, T): " << my_cal_data.GetDSSD() << " " <<my_cal_data.GetStrip() << " "
-	      << my_cal_data.GetAdcEnergy() << " " << my_cal_data.GetTimeAida() << std::endl; 
+    //    std::cout << "CAL (dssd, ch, E, T): " << my_cal_data.GetDSSD() << " " <<my_cal_data.GetStrip() << " "
+    //	      << my_cal_data.GetAdcEnergy() << " " << my_cal_data.GetTimeAida() << std::endl; 
   }
 
 
@@ -147,60 +147,71 @@ bool Analysis::BuildEvent(Calibrator & my_cal_data){
 }
 
 
-void Analysis::CloseEvent(){
+bool Analysis::CloseEvent(){
 
   //FS: this function will be called also for first entrie... when previous event has size zero!
 
   int Nend= q.size();
 
   //FS: reset to zero!!!!
-  //considering only one type (implants or decay)
   int n_hits[common::N_DSSD][2]={{0}};
+
   double energy[common::N_DSSD][2]={{0}};
-  //double energy_decay[common::N_DSSD][2]={{0}};
+
   double max_energy[common::N_DSSD][2]={{0}};
-  //double max_energy_decay[common::N_DSSD][2]={{0}};
+  int ch_max_e[common::N_DSSD][2]={{0}};
 
   int min_ch[common::N_DSSD][2]; //for dX of strips
   int max_ch[common::N_DSSD][2]={{0}};
-  //int min_ch_d[common::N_DSSD][2];
-  //int max_ch_d[common::N_DSSD][2]={{0}};
-  int ch_max_e[common::N_DSSD][2]={{0}};
 
   for(int i=0; i<common::N_DSSD;i++){
-    min_ch[i][0]=999;
-    min_ch[i][1]=999;
+    min_ch[i][0]= 0x200; //512
+    min_ch[i][1]= 0x200; //512
   }
 
+  if(GetBDebug()){
+    std::cout << "\nHITS:"
+	      << "\nRange\tDSSD\tSide\tch\tE\tTS"<<std::endl;
+  }
   for(int i=0; i< Nend ; i++){
 
     common::calib_data_struct cal;
     cal= q.front();
-
-    std::cout << "QUE (det, ch, E, T): " << cal.dssd << "  "<<cal.strip << " "
-	      << cal.adc_energy << " " << cal.time_aida << std::endl; 
-
     q.pop();
+
+    //    std::cout << "QUE (det, ch, E, T): " << cal.dssd << "  "<<cal.strip << " "
+    //	      << cal.adc_energy << " " << cal.time_aida << std::endl; 
 
     //skip decay range hit within implantation events
     if( !(cal.adc_range==0 && event_range==1) ){
-      n_hits[cal.dssd][cal.side]= n_hits[cal.dssd][cal.side];
-      energy[cal.dssd][cal.side]= cal.adc_energy;
-      if(cal.adc_energy>max_energy[cal.dssd][cal.side]){
+      //multiplicities
+      n_hits[cal.dssd][cal.side]= n_hits[cal.dssd][cal.side] +1;
+      //energy sum
+      energy[cal.dssd][cal.side]= energy[cal.dssd][cal.side] + cal.adc_energy;
+
+      //strip with maximum energy for that side
+      if(cal.adc_energy > max_energy[cal.dssd][cal.side]){
 	max_energy[cal.dssd][cal.side]= cal.adc_energy;
 	ch_max_e[cal.dssd][cal.side]= cal.strip;
       }
+
+      //strip for lowest and highest channel number
       if(cal.strip<min_ch[cal.dssd][cal.side]) min_ch[cal.dssd][cal.side]= cal.strip;
       if(cal.strip>max_ch[cal.dssd][cal.side]) max_ch[cal.dssd][cal.side]= cal.strip;
 
-      n_hits[cal.dssd][cal.side]= n_hits[cal.dssd][cal.side];
-      n_hits[cal.dssd][cal.side]= n_hits[cal.dssd][cal.side];
-
+      if(GetBDebug()){
+	std::cout << int(cal.adc_range) << " \t"
+		  << cal.dssd << " \t"
+		  << int(cal.side) << " \t"
+		  << cal.strip << " \t"
+		  << cal.adc_energy << " \t"
+		  << cal.time_aida << std::endl;
+      }
     }
 
 
   }
-  std::cout << "*----------------------------------------------------------------*" << std::endl;
+  //  std::cout << "*----------------------------------------------------------------*" << std::endl;
 
   if(!q.empty()){
     std::cout << "\n*********************\n"
@@ -210,214 +221,132 @@ void Analysis::CloseEvent(){
 
   }
 
-  /// ACA PIBE COMIENZA LA COCOA TODA!
+  /// ACA PIBE, COMIENZA TODA LA COCOA!
   int det0, det1;
   double e0=0;
   double e1=0;
   int delta0, delta1;
   int n_det=0;
-  // int n_det1=0;
+  bool b_hit_xy= true;
+
 
   //find detectors with largest energy measured for X and Y sides
   for(int i=0; i< common::N_DSSD; i++){
+    //find detector with largest energy for x-side strips
     if(energy[i][0]>= e0){
       det0= i; e0= energy[i][0];
     }
+    //find detector with largest energy for y-side strips
     if(energy[i][1]>= e1){
       det1= i; e1= energy[i][1];
     }
-
+    //count how many DSSDs have a hit (either in x or y)
     if(n_hits[i][0]>0 || n_hits[i][1]>0) ++n_det;
   }
 
-  delta0= max_ch[det0][0]-min_ch[det0][0];
-  delta1= max_ch[det1][1]-min_ch[det1][1];
+  //size of cluster (max-min strip)
+  delta0= max_ch[det0][0]-min_ch[det0][0] ;
+  delta1= max_ch[det1][1]-min_ch[det1][1] ;
 
 
-  //if nothing fishy going on (both sides of same detector)
-  if(det0==det1){
-    if( n_hits[det0][0] <= p_N_MAX[event_range] && n_hits[det0][1] <= p_N_MAX[event_range] ){
-      //extra conditions: 
-      //    delta < n_hits + DMAX
-      //    multiplicity detectors... or for implants, last with hits
-      //evt_data= cal.time_disc; //THIS MUST BE SET AT INIT?
-      evt_data.e_x= energy[det0][0];
-      evt_data.e_y= energy[det0][1];
-      evt_data.e= 0.5*(evt_data.e_x+evt_data.e_y);
-      evt_data.x= ch_max_e[det0][0];
-      evt_data.y= ch_max_e[det0][1];
-      evt_data.z = det0;
+  // in case max energy appears in different DSSDs, select the DSSD
+  // with the side with largest collected energy (we could try also energy per strip?)
+  if(det0!=det1){
+    if(energy[det0][0] > energy[det1][1]) det1= det0;
+    else det0= det1; 
+    b_hit_xy= false;
+  }
 
-      //FS: here add more stringent conditions...
-      //beta
-      if( event_range==0){
-	//not too many DSSDs with hits...
-	if(n_det <= p_N_DET_MAX) evt_data.type = 5;
+
+  //-----
+  //-----  Calculation of variables in evt_data structure begins here
+  //-----  
+  //-----
+  //-----
+  //check cluster size bellow maximum value (this should also reject pulser events)
+  if( n_hits[det0][0] <= p_N_MAX[event_range] && n_hits[det1][1] <= p_N_MAX[event_range] ){
+    //extra conditions: 
+    //    delta < n_hits + DMAX
+    //    multiplicity detectors... or for implants, last with hits
+    //evt_data= cal.time_disc; //THIS MUST BE SET AT INIT?
+    evt_data.e_x= energy[det0][0];
+    evt_data.e_y= energy[det1][1];
+    evt_data.e= 0.5*(evt_data.e_x+evt_data.e_y);
+    evt_data.x= ch_max_e[det0][0];
+    evt_data.y= ch_max_e[det1][1];
+    evt_data.z = det0;
+    
+    //FS: here add more stringent conditions...
+    //
+    //this could be checked earlier, and skip writing it to TTree, if more speed is needed.
+    if(n_hits[det0][0]==0 || n_hits[det1][1]==0) evt_data.type= 0xFF; 
+    else if( event_range==0){
+      //not too many DSSDs with hits...
+      if(n_det <= p_N_DET_MAX){
+	if(b_hit_xy)  evt_data.type = 5;
+	else evt_data.type= 105; //max energy for x and y planes in different DSSD
       }
-      //ion
-      else evt_data.type = 4;
-    }
-
-  }
-  else{
-
-  }
-
-
-
-  /********************* FS comment! *************  
-  int NmaxI=4;
-  int EminI=500;
-  int N_max_decay=4;
-
-
-  //IMPLANTS IMPLANTS
-  if(evt_data.n_side_i[1][0]>0 && evt_data.n_side_i[1][1]>0){
-    //N det2 and det3 are zero
-    if( evt_data.n_det_i[2]==0 && evt_data.n_det_i[3]==0 ){
-      //... small cluster (after implementing strip_min/max_i[][]) ....
-      if( evt_data.n_side_i[1][0]<NmaxI && evt_data.n_side_i[1][1]<NmaxI ){
-	//some minimum energy deposition (using Emax only for now)
-	if(evt_data.e_i[1][0]>EminI && evt_data.e_i[1][1]>EminI){
-	  evt_data.implant_flag= 1;
-	}
+      else{
+	evt_data.type= 0xFF; // bad value, will return false
+	//FS: could put a return value here, and would skip saving this event in TTree
+	//return false;
       }
     }
-  }
+    //ion
+    else if(b_hit_xy) evt_data.type = 4;
+    else if(!b_hit_xy) evt_data.type = 104; //max energy for x and y planes in different DSSD
+  
 
+    //if we're saving things to Root TTree, get values for hit structure
+    if(GetBRootTree()){
 
-  // Det#2  Det#2  Det#2
-  if(evt_data.n_side_i[2][0]>0 && evt_data.n_side_i[2][1]>0){
-    if(evt_data.n_det_i[3]==0){
-	//... small cluster (after implementing strip_min/max_i[][]) ....
-	if( evt_data.n_side_i[2][0]<NmaxI && evt_data.n_side_i[2][1]<NmaxI ){
-	  //some minimum energy deposition (using Emax only for now)
-	  if(evt_data.e_i[2][0]>EminI && evt_data.e_i[2][1]>EminI){
-	    evt_data.implant_flag= 2;
-	  }
-	}
+      //    if(evt_data.implant_flag>0){
+      //      int det= evt_data.implant_flag%10;
+      
+      hit.t= evt_data.t;
+      hit.t_fast= evt_data.t_fast;
+      hit.e= evt_data.e;
+      hit.e_x= evt_data.e_x;
+      hit.e_y= evt_data.e_y;
+      hit.x= evt_data.x; 
+      hit.y= evt_data.y;
+      hit.z= evt_data.z;
+      //--- new in analysis_data_struc (vs aida_event)
+      hit.n=0;
+      for(int i=0; i< common::N_DSSD ; i++){
+	hit.n= hit.n + n_hits[i][0] + n_hits[i][1];
+      }
+      hit.n_x= n_hits[det0][0];
+      hit.n_y= n_hits[det1][1];
+      hit.n_z= n_det; 
+      //------------------------
+      hit.type= evt_data.type; 
+      
+      out_root_tree->Fill();
     }
+
+    if(GetBDebug()){
+      std::cout << " *** EVENT:\n"
+		<< "TYPE \tDSSD \tX \tY \tE \tE_x \tE_y \tTS \tTS_fast\n"
+		<< int(evt_data.type) << " \t"
+		<< evt_data.z << " \t"
+		<< evt_data.x << " \t"
+		<< evt_data.y << " \t"
+		<< evt_data.e << " \t"
+		<< evt_data.e_x << " \t"
+		<< evt_data.e_y << " \t"
+		<< evt_data.t << " \t"
+		<< evt_data.t_fast << "\n---------------------------------------------------------------------" << std::endl;
+    }
+
+    if(evt_data.type == 0xFF) return false; //bad event (still saved to tree, but not file)
+    return true; //this was a good event (e.g. from cluster size conditions)
   }
+
+  //if data don't fulfill conditions for a good aida event
+  return false;
+
  
-
-  //IMPLANTS IMPLANTS
-  // Det#3  Det#3  Det#3
-  if(evt_data.n_side_i[3][0]>0 && evt_data.n_side_i[3][1]>0){
-
-    if(evt_data.n_det_i[2]>1){ //vt_data.n_side_i[1][1]>0){
-      //dX(23) is ok
-      if( (evt_data.x_i[3]-evt_data.x_i[2])< dX_i_lim && (evt_data.y_i[3]-evt_data.y_i[2])<dX_i_lim){
-	//... small cluster (after implementing strip_min/max_i[][]) ....
-	if( evt_data.n_side_i[3][0]<NmaxI && evt_data.n_side_i[3][1]<NmaxI ){
-	  //some minimum energy deposition (using Emax only for now)
-	  if(evt_data.e_i[3][0]>EminI && evt_data.e_i[3][1]>EminI){
-	    evt_data.implant_flag= 3;
-	  }
-	}
-      }
-    }
-
-  }
-
-  //pulser?
-  if(evt_data.implant_flag<1){
-    if( (evt_data.n_side_d[1][0]>35 && evt_data.n_side_d[2][0]>35 && evt_data.n_side_d[3][0]>35) || 
-	(evt_data.n_side_d[1][1]>35 && evt_data.n_side_d[2][1]>35 && evt_data.n_side_d[3][1]>35) ){
-      b_pulser= true;    
-      //std::cout<< "close:pulser: "<<b_pulser<<std::endl;
-    }
-  }
-  
-  //DECAYS DECAYS
-  if(!b_pulser && evt_data.implant_flag==0){
-    //Det#2 Det#2 Det#2
-    int det=2;
-
-    if(evt_data.n_side_d[det][0]>0 && evt_data.n_side_d[det][1]>0 && evt_data.n_side_d[det][0]<=N_max_decay && evt_data.n_side_d[det][1]<=N_max_decay){
-	
-      //E>Emin
-      if(evt_data.e_d[det][0]>E_d_min && evt_data.e_d[det][1]>E_d_min){ 
-
-	//E<Emax
-	if(evt_data.e_d[det][0]<E_d_max && evt_data.e_d[det][1]<E_d_max){ 
-
-	  //cluster size
-	  if((strip_max_d[det][0]-strip_min_d[det][0])< (evt_data.n_side_d[det][0]+1)){
-	    if( (strip_max_d[det][1]-strip_min_d[det][1])< (evt_data.n_side_d[det][1]+1)){
-	      
-	      evt_data.decay_flag= det;
-	    }
-	  }//cluster size x
-	}
-      }//E>Emin
-	
-    } //decay Det2
-
-    det=3;
-    if(evt_data.n_side_d[det][0]>0 && evt_data.n_side_d[det][1]>0 && evt_data.n_side_d[det][0]<=N_max_decay && evt_data.n_side_d[det][1]<=N_max_decay){
-      //    if(evt_data.n_side_d[det][0]>0 && evt_data.n_side_d[det][1]>0 && evt_data.n_det_d[det]<=N_max_decay){
-	
-      //E>Emin
-      if(evt_data.e_d[det][0]>E_d_min && evt_data.e_d[det][1]>E_d_min){ 
-
-	//E<Emax
-	if(evt_data.e_d[det][0]<E_d_max && evt_data.e_d[det][1]<E_d_max){ 
-
-	  //cluster size
-	  if((strip_max_d[det][0]-strip_min_d[det][0])< (evt_data.n_side_d[det][0]+1)){
-	    if( (strip_max_d[det][1]-strip_min_d[det][1])< (evt_data.n_side_d[det][1]+1)){
-
-	      if(evt_data.decay_flag==2){
-		if(evt_data.e_d[2][0] > evt_data.e_d[3][0] || evt_data.e_d[2][1] > evt_data.e_d[3][1]) evt_data.decay_flag= 2;
-		else evt_data.decay_flag= 3;
-	      }
-	      else evt_data.decay_flag= det;
-	    }
-	  }//cluster size x
-	}
-      }//E>Emin
-	
-    } //decay Det3
-
-  }//not implant or pulser hit
-
-
-  if(GetBRootTree()){
-
-    if(evt_data.implant_flag>0){
-
-      int det= evt_data.implant_flag%10;
-
-      hit.t= evt_data.t0;
-      hit.t_ext= evt_data.t0_ext;
-      hit.z= det;
-      hit.x= evt_data.x_i[det];
-      hit.y= evt_data.y_i[det];
-      hit.ex= evt_data.e_i[det][1]; // p-side strips
-      hit.ey= evt_data.e_i[det][0]; // n-side strips
-      hit.flag= 1 + evt_data.implant_flag/10; //1, 2
-
-      out_root_tree->Fill();
-    }
-    else if(evt_data.decay_flag>0){
-
-      int det= evt_data.decay_flag%10;
-
-      hit.t= evt_data.t0;
-      hit.t_ext= evt_data.t0_ext;
-      hit.z= det;
-      hit.x= evt_data.x_d[det];
-      hit.y= evt_data.y_d[det];
-      hit.ex= evt_data.e_d[det][1]; // p-side strips
-      hit.ey= evt_data.e_d[det][0]; // n-side strips
-      hit.flag= 11 + evt_data.decay_flag/10; //11, 12
-
-      out_root_tree->Fill();
-  
-    }
-
-  }
-  ******************************************************/
 }
 
 
@@ -455,52 +384,58 @@ void Analysis::InitEvent(Calibrator & my_cal_data){
 
 void Analysis::WriteOutBuffer(DataSource & my_source){
 
-  int s_double= sizeof(double);
-  int s_int= sizeof(int);
-  int s_char= sizeof(char);
+  //FS int s_double= sizeof(double);
+  //FS int s_int= sizeof(int);
+  //FS int s_char= sizeof(char);
+
+
+  /*********
+  std::cout << "\n FAST DEBUG!! " 
+	  << "\n size matters:"
+	  << "\n    - unsigned long long: " << sizeof(unsigned long long)
+	  << "\n    - double: "<< sizeof(double)
+	  << "\n    - int: "<< sizeof(int)
+	  << "\n    - unsigned char: " << sizeof(unsigned char)
+	  << "\n    - aida_event: "<< sizeof(evt_data) 
+	    << "\n    - aida_event: "<< sizeof(common::aida_event) 
+	  <<std::endl;
+  *******************/
 
   int offset=my_source.GetBuffOffset(); 
 
-  int32_t aida_id= 0xA1DA;
-
   // FS: debug values for output
-  evt_data.t=0;
-  evt_data.t_fast=0xAABBCCDD;
-  evt_data.e= 1;
-  evt_data.e_x=2;
-  evt_data.e_y=3;
-  evt_data.x=4;
-  evt_data.y=5;
-  evt_data.z=6;
+  //  evt_data.t=0xFFEEFFEE000041D4;
+  //  evt_data.t_fast=0xAABBCCDD;
+  //  evt_data.e= 1;
+  //  evt_data.e_x= 2;
+  //  evt_data.e_y=3;
+  //  evt_data.x=4;
+  //  evt_data.y=5;
+  // evt_data.z=6;
+  // evt_data.type= 0xEE;
 
-  evt_data.type= 0xEE;
-  //  evt_data.t0_ext= 0xAAA2;
-  //evt_data.dt= 0xAAA3;
-  //  evt_data.multiplicity= 0xBBBB;
 
   //FS: debug values for output
-  memcpy(my_source.BufferOut+offset, (char*) &aida_id, sizeof(int32_t) );
-  memcpy(my_source.BufferOut+offset+sizeof(int32_t), (char*) &evt_data, sizeof(evt_data) );
+  //  memcpy(my_source.BufferOut+offset, (char*) &aida_id, sizeof(int32_t) );
+  //memcpy(my_source.BufferOut+offset+sizeof(int32_t), (char*) &evt_data, sizeof(evt_data) );
+  // remove aida_id from data file
+  memcpy(my_source.BufferOut+offset, (char*) &evt_data, sizeof(evt_data) );
 
+  //FS: remove... if needed
+  //  if(GetBDebug()){
+  //  std::cout << "\n size of evt_data: "<< sizeof(evt_data) << std::endl ;
+  //    int j=0;
+  //  for(int i= offset; i< offset+sizeof(evt_data); i++){
+  ///    if((j%16)==0) std::cout<< std::endl <<" -- "; //printf("\n");
+  //    if( (j%4)==0) std::cout << " 0x";      
+  //    printf("%02hhx",my_source.BufferOut[i]);
+  //    j++;
+  //  }
+  // }
 
-  if(b_debug){
-    std::cout << "\n size of evt_data: "<< sizeof(evt_data) << std::endl ;
-    
-    int j=0;
-    for(int i= offset; i< offset+sizeof(evt_data)+sizeof(int32_t); i++){
-      if((j%16)==0) std::cout<< std::endl <<" -- "; //printf("\n");
-      if( (j%4)==0) std::cout << " 0x";
-      
-      printf("%02hhx",my_source.BufferOut[i]);
-      
-      j++;
-    }
-  }
+  //FS  offset= offset + sizeof(evt_data)+sizeof(int32_t);
+  offset= offset + sizeof(evt_data);
 
-
-  offset= offset + sizeof(evt_data)+sizeof(int32_t);
-
- 
   my_source.SetBuffOffset(offset);
   my_source.WriteBuffer();
   //  my_source.TransferBuffer(evt_data.t);
@@ -1485,7 +1420,8 @@ void Analysis::InitAnalysis(int opt){
     std::cout << " ***     Analysis::InitAnalysis(): initializing TTree" << std::endl;
     //Initialize TTree
     out_root_tree = new TTree("AIDA_hits","AIDA_hits");
-    out_root_tree->Branch("aida_hit",&hit,"t/L:t_ext/L:x/I:y/I:z/I:ex/I:ey/I:flag/I");
+    out_root_tree->Branch("aida_hit",&hit,"t/l:t_fast/l:e/D:e_x/D:e_y/D:x/D:y/D:z/D:n/I:n_x/I:n_y/I:n_z/I:type/b");
+    //x/I:y/I:z/I:ex/I:ey/I:flag/I");
     SetBRootTree(true);
   }
 
@@ -1494,6 +1430,29 @@ void Analysis::InitAnalysis(int opt){
 
 void Analysis::ResetEvent(){
 
+
+  evt_data.t= 0;
+  evt_data.t_fast= 0;
+  evt_data.e= -1;
+  evt_data.e_x= -1;
+  evt_data.e_y= -1;
+  evt_data.x= -1;
+  evt_data.y= -1;
+  evt_data.z= -1;
+  evt_data.type= 0;
+
+  // these are all assigned a value in the CloseEvent() function
+  // there should be not case when they are saved with garbage values
+  /**********************
+  hit.t= -1;
+  hit.t_ext= -1;
+  hit.x= -1;
+  hit.y= -1;
+  hit.z= -1;
+  hit.ex= -1;
+  hit.ey= -1;
+  hit.flag= -1;
+  *******************/
 
   //FS: all zero!!!
   /***********************
@@ -1880,6 +1839,7 @@ void Analysis::PrintEvent(){
 }
 
 
+// called from main.cpp to write objects to Root file
 void Analysis::Close(){
   if(GetBHistograms()) WriteHistograms();
 
@@ -1914,7 +1874,7 @@ void Analysis::SetBRootTree(bool flag){
   //Getters...
 double Analysis::GetEventTimeWindow(){ return event_time_window; }
 
-bool Analysis::GetBDebug(){ return b_debug; }
+//bool Analysis::GetBDebug(){ return b_debug; }
 bool Analysis::GetBHistograms(){ return b_histograms; }
 //bool Analysis::GetBPushData(){ return b_push_data; }
 bool Analysis::GetBRootTree(){ return b_root_tree; }
@@ -1944,10 +1904,22 @@ Analysis::Analysis(){
   event_time_window = 3200;
 
   p_opt_tm_stp= 0;
+
   p_N_MAX[0]=6;
   p_N_MAX[1]=12;
   p_DELTA_MAX=3;
   p_N_DET_MAX=3;
+
+  /********8
+  hit.t= -1;
+  hit.t_ext= -1;
+  hit.x= -1;
+  hit.y= -1;
+  hit.z= -1;
+  hit.ex= -1;
+  hit.ey= -1;
+  hit.flag= -1;
+  **********/
 
   //dE_i_lim= 2000;
   //dX_i_lim= 15;
@@ -1994,14 +1966,6 @@ Analysis::Analysis(){
   //  evt_data.decay_flag= 0;
   //evt_data.implant_flag= 0;
 
-  hit.t= -1;
-  hit.t_ext= -1;
-  hit.x= -1;
-  hit.y= -1;
-  hit.z= -1;
-  hit.ex= -1;
-  hit.ey= -1;
-  hit.flag= -1;
 
 
 }

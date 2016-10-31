@@ -20,10 +20,10 @@
 #include <string>
 
 
-#include<signal.h>
-#include"TSystem.h"
-#include "kbhit.h"
-#include <TSysEvtHandler.h>
+//#include<signal.h>
+//#include"TSystem.h"
+//#include "kbhit.h"
+//#include <TSysEvtHandler.h>
 
 
 
@@ -182,6 +182,8 @@ int main  (int argc, char **argv){
 
   std::cout << "AIDA be like: BRIKEN time!!" << std::endl;
 
+
+
   std::string FileNameData="";
 
   char *FileCalibParameters= (char*)"config/parameters.txt";
@@ -277,8 +279,8 @@ int main  (int argc, char **argv){
     if(midas_data.GetBSourceOpen()){
       //    std::cout << "begin forever looop"<<std::endl;
       
-      for(int NNN=0; NNN < NMAX; ++NNN){
-	
+      //    for(int NNN=0; NNN < NMAX; ++NNN){
+      for(;;){
 	//to pause loop and take a moment to reflect on the beauty of our planet and histograms 
 	/************
 	if(kbhit()==1){
@@ -338,23 +340,14 @@ int main  (int argc, char **argv){
 	    if(calibrator_data.GetBPushData()){
 	      analysis_data.Process(midas_data, calibrator_data);
 	    }
-
-
-	    /************
-	    n_entry++;
-	    
-	    if( (n_entry%n_update)==0 ){
-	      std::cout << n_entry << " entries unpacked..."<<std::endl;
-	      unpacker_data.UpdateHistograms();
-	      calibrator_data.UpdateHistograms();
-	      analysis_data.UpdateHistograms();
-	    }
-	    ***************/
 	  }
 	}
 	
 	//how to break from online? -> Ctr+C?
 	if(midas_data.GetBEndOfData()){
+	  analysis_data.CloseEvent();
+	  analysis_data.WriteOutBuffer(midas_data); //write final buffers in file
+
 	  std::cout << "\n\n ---- Reached end of input file --- " << std::endl;
 	  break;
 	}

@@ -37,7 +37,7 @@ class Calibrator{
   //-----------------------------------------------
   //
   // ++ mask modules & channels ++
-  bool b_ch_enabled[common::N_FEE64][common::N_CHANNEL];
+  //FS: in Unpacker.h  bool b_ch_enabled[common::N_FEE64][common::N_CHANNEL];
   // ++ geometry of stack ++
   int map_dssd[common::N_FEE64]; //module -> DSSD
   int map_side[common::N_FEE64]; //module -> vertical/horizontal strips
@@ -47,6 +47,7 @@ class Calibrator{
   double adc_offset[common::N_FEE64][common::N_CHANNEL];
   double adc_gain[common::N_FEE64][common::N_CHANNEL];
   double adc_gain_highE[common::N_FEE64]; //20GeV range: for now use simple calibration.
+  double energy_threshold[common::N_FEE64][common::N_CHANNEL];
   int disc_time_window;
   double aida_time_calib;
   //-----------------------------------------------
@@ -94,8 +95,8 @@ class Calibrator{
   void Write();
 
   //get and set: which ones!
-  bool SetGeometry();
-  void CalibrateAdc();
+  void SetGeometry();
+  bool CalibrateAdc();
   unsigned char OrderChannel( unsigned char ch );
 
   //Setters...
@@ -105,7 +106,7 @@ class Calibrator{
   void SetBFillTree(bool flag);
   void SetBRootTree(bool flag);
 
-  void SetBEnabled(bool flag); //forget for now...
+  //FS  void SetBEnabled(bool flag); //forget for now...
   void SetBValidCh(bool flag);
   void SetBCorrStatus(bool flag);
 
@@ -140,7 +141,7 @@ class Calibrator{
   bool GetBFillTree();
   bool GetBRootTree();
 
-  bool GetBEnabled();
+  //FS  bool GetBEnabled();
   bool GetBValidCh();
   bool GetBCorrStatus();
 

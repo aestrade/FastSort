@@ -45,7 +45,7 @@ vpath %.cpp ./src
 vpath %.h ./include
 
 #AIDA-unpack.exe : main.o $(OBJECTS)
-AIDAsort.v2.exe : main.o $(OBJECTS)
+AIDAFastSort.v2.1.exe : main.o $(OBJECTS)
 	$(CC) $(LDFLAGS)  $(LDLIBS) -o $@ $^
 #	$(CC) $(LDFLAGS) $(LIBS) -o $@ $^
 

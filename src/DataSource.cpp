@@ -50,10 +50,10 @@ void DataSource::Process(){
     word_1 = (block_data[itr_data+4] & 0xFF) | (block_data[itr_data+5] & 0xFF) << 8 | 
       (block_data[itr_data+6] & 0xFF) << 16 | (block_data[itr_data+7] & 0xFF) << 24;
     
-    if(b_debug && itr_data<17){
-      printf("db     itr%i  word0: %X \n", itr_data, word_0);
-      printf("db            word1: %X \n", word_1);
-    }
+    //FS: out  if(b_debug && itr_data<17){
+    //  printf("db     itr%i  word0: %X \n", itr_data, word_0);
+    //  printf("db            word1: %X \n", word_1);
+    //}
 
 
     //We reject all data when one of the words is 0xFFFF
@@ -71,7 +71,12 @@ void DataSource::Process(){
     if(itr_data >= data_length) SetBEndOfBuffer(true);
   }
   else { //need new buffer (or we've reached end of file)
-    ReadBuffer(); //this thing returns a bool
+    if(!ReadBuffer()){ //this thing returns a bool
+      if(GetBEndOfData()){ //FS: nothing more in the file, write last buffer
+	std::cout << "\n *** DataSource::Process(): REACHED END OF DATA FILE **** " << std::endl; //WriteBuffer();
+      }
+
+    }
     SetBPushData(false);
   }
 
@@ -325,6 +330,9 @@ void DataSource::InitDataSource(int opt, int my_id, std::string &file_name, bool
 
   //FS-FS
   testFile.open("testOutFS.bin", std::ios::out | std::ios::binary);
+
+  SetBEndOfData(false);
+
 }
 
 
@@ -381,19 +389,38 @@ void DataSource::WriteBuffer(){
 
   //is 'ts' a timestamp? what for?
   //  if(GetBuffOffset() > MAX_LENGTH_DATA | ts > (ts_0 + DELTA_TS )){
-  if(GetBuffOffset() > MAX_LENGTH_DATA ){
+  if(GetBuffOffset() > MAX_LENGTH_DATA || GetBEndOfData() ){
     int s;
 
     //buffer lenght... calculate useful data... and add a few 0xfffffff if required
     BufferLength= GetBuffOffset();
 
+
+
     int empty= MAIN_SIZE - BufferLength;
+    int event_size = sizeof(common::aida_event);
+
+    int32_t num_events = (BufferLength - HEADER_SIZE)/event_size;
+    int32_t aida_id = 0xA1DA;
+
+    if(b_debug){
+      std::cout << "\n *** WriteBuffer(): "
+		<<"\n  ++++ BuffLen, NumEvents: " << BufferLength << "  " << num_events << std::endl << std::endl;
+    }
 
     // add 0xFFFFFFFFFFFFFFFFFFFFFFFF at end
-    for(int i=0;(i<24 && i< empty);i++){
+    for(int i=0;(i<event_size && i< empty);i++){
 	BufferOut[BufferLength]= 0xFF;
 	BufferLength++;
       }
+
+    //FS: put some data in header!!!!
+    for(int i=0; i< HEADER_SIZE;i++){
+	BufferOut[i]= 0x00;
+	//BufferLength++;
+      }
+    memcpy(BufferOut, (char*) &aida_id, sizeof(int32_t) );
+    memcpy(BufferOut+sizeof(int32_t), (char*) &num_events, sizeof(int32_t) );
 
     //FS-FS: this now write to file...
     //    s = transferMultiTxData (ID, &BufferOut[sizeof(HEADER)], stream, /*my_length*/ BufferLength);   /*   write data from offset 32 bytes  */
@@ -402,7 +429,9 @@ void DataSource::WriteBuffer(){
     //FS    if (b_debug) printf("Transfer: code %u, ts %f (0x%f). %u  bytes of data.\n", s, ts, ts, buff_offset);
     
     //FS    ts_0= ts;
-    SetBuffOffset(HEADER_SIZE+8); //Initnal offset to take into account header....
+    //FS  SetBuffOffset(HEADER_SIZE+8); //Initnal offset to take into account header....
+    //FS: delete 8, as this was from using 0xA1DA as a marker for this transfered stream...
+    SetBuffOffset(HEADER_SIZE); //Initnal offset to take into account header....
   }
 
   return;
@@ -475,12 +504,16 @@ void DataSource::SetDataSpyId(int value){
   id= value;
 }
 
+//void DataSource::SetBLast(bool value){
+//  b_last= value;
+//}
+
 
 bool DataSource::GetBSourceOpen(){ return b_source_open; }
 
 bool DataSource::GetBSendData(){ return b_send_data; }
 
-bool DataSource::GetBEndOfData(){ return b_end_of_data; }
+//FS (now inline?) bool DataSource::GetBEndOfData(){ return b_end_of_data; }
 
 bool DataSource::GetBEndOfBuffer(){ return b_end_of_buffer; }
 
@@ -497,8 +530,8 @@ unsigned int DataSource::GetWord0(){ return word_0; }
 
 unsigned int DataSource::GetWord1(){ return word_1; }
 
-
 int DataSource::GetDataSpyId(){ return id; }
+
 
 DataSource::DataSource(){
 

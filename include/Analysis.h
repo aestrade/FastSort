@@ -98,18 +98,8 @@ class Analysis{
   *********** FS ******************/
 
 
-  struct dssd_hits{
-    Long64_t t;
-    Long64_t t_ext;
-    int x;
-    int y;
-    int z;
-    int ex;
-    int ey;
-    int flag;
-  } hit;
 
-
+  common::analysis_data_struct hit;
   common::aida_event evt_data;
 
  public:
@@ -247,7 +237,7 @@ class Analysis{
   void Close();
 
   bool BuildEvent(Calibrator & my_cal_data);
-  void CloseEvent();
+  bool CloseEvent();
   void InitEvent(Calibrator & my_cal_data);
 
 
@@ -279,7 +269,7 @@ class Analysis{
 
   //Getters...
   double GetEventTimeWindow();
-  bool GetBDebug();
+  inline bool GetBDebug() { return b_debug; };
   bool GetBHistograms();
   bool GetBPushData();
   bool GetBFillTree();

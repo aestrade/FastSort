@@ -41,6 +41,7 @@ class Unpacker{
   //   BEGIN PARAMETERS
   //-----------------------------------------------
   bool b_mod_enabled[common::N_FEE64]; 
+  bool b_ch_enabled[common::N_FEE64][common::N_CHANNEL];
   //-----------------------------------------------
   //   END PARAMETERS
   //-----------------------------------------------
@@ -108,6 +109,8 @@ class Unpacker{
   void FillHistograms();
   bool IsValidFee64Id();
   bool IsValidFee64Id(int mod_id);
+  bool IsValidChannelId();
+  bool IsValidChannelId(int mod_id);
 
   void UpdateHistograms();
   void WriteHistograms();

@@ -15,6 +15,7 @@
 
 #include <time.h>
 
+#include "Common.h"
 
 
 
@@ -46,7 +47,7 @@ class DataSource{
   static const int HEADER_SIZE=24; // Size of header in bytes
   static const int BLOCK_SIZE= 0x10000; //Max block size is 64kb. Amount of useful data given in header
   static const int MAIN_SIZE=  BLOCK_SIZE - HEADER_SIZE; // works?
-  static const int MAX_LENGTH_DATA = 4000;
+  static const int MAX_LENGTH_DATA = 64000;
   //  static const int MAX_LENGTH_DATA = MAIN_SIZE - 3*352; // 352 current size of thingy being transmitted... some safety....
   static const int DELTA_TS = 40000000;
 
@@ -102,6 +103,7 @@ class DataSource{
   int itr_data;
 
 
+  //  bool b_last; //FS: to write the las buffer, when we finished with input file
 
     
  public:
@@ -137,10 +139,12 @@ class DataSource{
   void SetBuffOffset(int value);
 
   void SetDataSpyId(int value);
+  // void SetBLast(bool value);
 
   bool GetBSourceOpen();
   bool GetBEndOfBuffer();
-  bool GetBEndOfData();
+  //bool GetBEndOfData();
+  inline bool GetBEndOfData(){ return b_end_of_data; }
   bool GetBPushData();
   int GetItrBlock();
   int GetItrData();
@@ -150,6 +154,7 @@ class DataSource{
   int GetBuffOffset();
 
   int GetDataSpyId();
+
 
 };
 

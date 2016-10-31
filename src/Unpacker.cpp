@@ -54,9 +54,13 @@ void Unpacker::Process(DataSource & my_src_data){
     my_long = word_1 & 0x0FFFFFFF;  //bits 0:27
     SetTmStpLsb(my_long);
 
-    if(IsValidFee64Id() && b_mod_enabled[GetFee64Id()]) SetBPushData(true);
+    //FS    if(IsValidFee64Id() && b_mod_enabled[GetFee64Id()]) SetBPushData(true);
+    if( IsValidFee64Id() && IsValidChannelId() ){
+      if(b_ch_enabled[GetFee64Id()][GetChId()] && b_mod_enabled[GetFee64Id()]) SetBPushData(true);
+    }
 
-    SetBFillTree(true);
+    //FS: make default...
+    //FS:default SetBFillTree(true);
   }  
   //Information data
   else if(GetDataType() == 2){
@@ -92,9 +96,9 @@ void Unpacker::Process(DataSource & my_src_data){
     // 6==DISC data
     else if(GetInfoCode()==6){
       my_char= GetInfoField() & 0xFFFF;  //channel number is encoded in info-field
-      SetChId(my_char);
+      SetChId(0);
 
-      SetBPushData(true);
+      if( IsValidFee64Id() ) SetBPushData(true);
     }
 
     // 8==Correlation Scaler
@@ -102,15 +106,15 @@ void Unpacker::Process(DataSource & my_src_data){
       my_char= ( GetInfoField() & 0x000F0000 ) >> 16; //index of corr scaler
       my_long = ( GetInfoField() & 0x0000FFFF ) ; //bits with timestamp
 
-      //assumes numbering Fee64 modules starts from 1 (and now goes 1:16)
-      if(IsValidFee64Id()) {
+      ////assumes numbering Fee64 modules starts from 1 (and now goes 1:16)
+      if(b_mod_enabled[GetFee64Id()]) {
 	if(my_char==0) corr_scaler_data0[GetFee64Id()]= my_long;
 	else if(my_char==1) corr_scaler_data1[GetFee64Id()]= my_long;
 	else if(my_char==2){
 	  unsigned long scaler= my_long << 32 | corr_scaler_data1[GetFee64Id()] << 16 | corr_scaler_data0[GetFee64Id()];
 
 	  if(b_debug){
-	    if(GetFee64Id()==13 ||GetFee64Id()==14 ||GetFee64Id()==16 ){
+	    if(GetFee64Id()==13 || GetFee64Id()==14 || GetFee64Id()==16 ){
 	      
 	      std::cout << " CORR SCALER: "<< 1.*scaler <<std::endl;
 	    }
@@ -119,12 +123,12 @@ void Unpacker::Process(DataSource & my_src_data){
 	  //updates state of b_corr_status, if we have already received SYN100 pulses
 	  //also updates value of corr_scaler_offset
 	  SetCorrScaler(scaler);
-	  SetBPushData(true);
+	  if( IsValidFee64Id() ) SetBPushData(true);
 	}
       }
     }
 
-    SetBFillTree(true); //Fill TTree for all Info Data Codes
+    //FS: default    SetBFillTree(true); //Fill TTree for all Info Data Codes
   }
   //Sample trace: Sample Lenght
   else if(GetDataType() == 1){
@@ -141,6 +145,8 @@ void Unpacker::Process(DataSource & my_src_data){
 
     my_long = word_1 & 0x0FFFFFFF;  //bits 0:27
     SetTmStpLsb(my_long);
+
+    SetBFillTree(false);
   }
 
   //Sample trace: Waveform data
@@ -150,11 +156,14 @@ void Unpacker::Process(DataSource & my_src_data){
 
     my_int=  (word_0 >> 16) & 0x00003FFF;    //sample n
     SetSampleLength(my_int);
+
+    SetBFillTree(false);
   }
   else{
     //output error message!
     std::cerr << " **WARNING** Unpacker.cpp: DATA TYPE NOT RECOGNIZED! word 0: " << word_0 << ", data_type: "<<GetDataType()<<std::endl;
-    SetBPushData(false);
+    //FS: this is default SetBPushData(false);
+    SetBFillTree(false);
   }
 
 
@@ -169,18 +178,6 @@ void Unpacker::Process(DataSource & my_src_data){
     
   //FS  if(GetBHistograms()) FillHistograms();
  
-  /******** FS ********
-  if(b_debug){
-    if(my_src_data.GetItrData()<65){ //for first few entries in block output to screen
-      printf("db      Unp:: DataType= %i, NNAIDA%i, tm-stp(lsb)= %lu, ",GetDataType(),GetFee64Id(),GetTmStpLsb());
-      if(GetDataType()==3) printf("adc= %u\n",GetAdcData());
-      else if(GetDataType()==2) printf("code= %i\n",GetInfoCode());
-    }
-    else if(GetFee64Id() == 3 && GetDataType() == 3 && GetChId()<2){
-      printf("db      Unp:: NNAIDA3: ch= %i, adc= %u\n",GetChId(),GetAdcData());
-    }
-  }
-  *****************/
 }
 
 
@@ -222,14 +219,28 @@ void Unpacker::FillHistograms(){
   //}
 }
 
+
 bool Unpacker::IsValidFee64Id(){
-  if(GetFee64Id() >0 && GetFee64Id() < common::N_FEE64) return true; //common:n_fee64?
+  if(GetFee64Id() >= 0 && GetFee64Id() < common::N_FEE64) return true; //common:n_fee64?
   else return false;
 }
 
 
 bool Unpacker::IsValidFee64Id(int mod_id){
-  if(mod_id >0 && mod_id < common::N_FEE64) return true; //common:n_fee64?
+  if(mod_id >= 0 && mod_id < common::N_FEE64) return true; //common:n_fee64?
+  else return false;
+}
+
+
+
+bool Unpacker::IsValidChannelId(){
+  if(GetChId() >= 0 && GetChId() < common::N_CHANNEL) return true; //common:n_fee64?
+  else return false;
+}
+
+
+bool Unpacker::IsValidChannelId(int ch_id){
+  if(ch_id >= 0 && ch_id < common::N_CHANNEL) return true; //common:n_fee64?
   else return false;
 }
 
@@ -382,7 +393,7 @@ void Unpacker::ResetHistograms(){
 void Unpacker::ResetData(){
 
   b_push_data= false;
-  b_fill_tree= false;
+  b_fill_tree= true;
 
   unp_data.tm_stp= 0;
   unp_data.corr_scaler= 0;
@@ -391,11 +402,11 @@ void Unpacker::ResetData(){
 
   unp_data.adc_data= 0;
   unp_data.sample_length= 0;
-  unp_data.data_type= 0;
-  unp_data.fee64_id= 0;
-  unp_data.ch_id= 0;
-  unp_data.adc_range= 0;
-  unp_data.info_code= 0;
+  unp_data.data_type= 0x200;
+  unp_data.fee64_id= 0x200;
+  unp_data.ch_id= 0x200;
+  unp_data.adc_range= 0x200;
+  unp_data.info_code= 0x200;
 
   unp_data.sync_flag= false;
   //  unp_data.corr_flag= false; 
@@ -445,7 +456,7 @@ void Unpacker::LoadParameters(char * file_name){
   param_file.open(file_name,std::ios::in); //need to specify as text?
 
 
-  const int MAX_LINES= 40000; //4176 number of parameters used so far...
+  const int MAX_LINES= 400000; //4176 number of parameters used so far...
   int line_count=0;
   int par_count=0;
 
@@ -486,6 +497,13 @@ void Unpacker::LoadParameters(char * file_name){
 	    if(IsValidFee64Id(module)){
 	      par_count++;
 	      b_mod_enabled[module]= int(data);
+	    }
+	  }
+	  if(par_name=="b_ch_enabled"){
+	    module= x; channel= y; data= z;
+	    if(IsValidFee64Id(module) && IsValidChannelId(channel)){
+	      par_count++;
+	      b_ch_enabled[module][channel]= int(data);
 	    }
 	  }
 	  else{
@@ -572,7 +590,7 @@ void Unpacker::SetTmStp(){
   if(GetBSyncStatus()){
     unp_data.tm_stp= ( tm_stp_msb << 28 ) | unp_data.tm_stp_lsb ; //or do I use a parameter in function call for tm_stp_lsb?
    }
-  else unp_data.tm_stp= 0;
+  else unp_data.tm_stp= 1;
 }
 
 void Unpacker::SetFlags(){
@@ -683,9 +701,12 @@ Unpacker::Unpacker(){
   //by default, all channels enabled
   for(int i=0;i<common::N_FEE64;i++){
     b_mod_enabled[i]= true;
+    for(int j=0; j<common::N_CHANNEL; j++){
+      b_ch_enabled[i][j]= true;
+    }
   }
 
-  /****************/
+  /****************
   //file name-> to load parameters
   b_mod_enabled[0]= false;
   b_mod_enabled[1]= true;
@@ -720,7 +741,7 @@ Unpacker::Unpacker(){
   b_mod_enabled[30]= true;
   b_mod_enabled[31]= false;
   b_mod_enabled[32]= false;
-  /***************/
+  ***************/
 
 
   unp_data.tm_stp= 0;

@@ -25,15 +25,15 @@ void Calibrator::Process(Unpacker & my_unp_data){
 
   //channel will be set to default values for some bits of data where they don't apply (SYNC pulse)
   SetModule( my_unp_data.GetFee64Id() );
+  //FS: meaningless for disc!
   SetChannel( my_unp_data.GetChId() );
 
-  if( IsValidChannel(GetModule(), GetChannel() )){ //should already be checked if valid in Unpacker?
+  //FS: already checked in unpacker  if( IsValidChannel(GetModule(), GetChannel() )){ //should already be checked if valid in Unpacker?
     
-    SetBValidCh( true ); //not used! can be commented out ...
-    SetBEnabled( b_ch_enabled[GetModule()][GetChannel()] );
-    
-  }
-  else return; //now ensure it will be valid, no need to check again in each step....?
+  //FS in unpacker SetBValidCh( true ); //not used! can be commented out ...
+  //FS: in unpacker  SetBEnabled( b_ch_enabled[GetModule()][GetChannel()] );
+     
+  //FS: done already else return; //now ensure it will be valid, no need to check again in each step....?
 
   SetDataType( my_unp_data.GetDataType() );
 
@@ -47,33 +47,31 @@ void Calibrator::Process(Unpacker & my_unp_data){
 
     if(my_unp_data.GetInfoCode()==6){ //FAST DISCRIMINATOR hit
       
-      SetTmStpDisc(my_unp_data.GetTmStp()); //set function will check validity of channel
+      SetTmStpDisc(my_unp_data.GetTmStp()); 
 
     }
 
     //if CORRELATION SCALER 
     else if(my_unp_data.GetInfoCode()==8){
 
-      if(  GetModule()==13 ||GetModule()==14 ||GetModule()==16  ){
+      //FS: any module
+      //if(  GetModule()==13 ||GetModule()==14 ||GetModule()==16  ){
 
+      int64_t offset=  4*my_unp_data.GetCorrScaler() - my_unp_data.GetTmStp(); //AIDA= 100MHz Corr scaler= 25MHz
 
-	int64_t offset=  4*my_unp_data.GetCorrScaler() - my_unp_data.GetTmStp(); //AIDA= 100MHz Corr scaler= 25MHz
+      SetBCorrStatus(true);
+      SetTmStpOffset(offset);
 
-	SetBCorrStatus(true);
-	SetTmStpOffset(offset);
-
-	if(b_debug){
-	  std::cout << " OFFFFFFFFFFFFFFFFFFFFF: " << offset<<std::endl;
-
-	  std::cout << "MODULE:"<<int(my_unp_data.GetFee64Id())<<"::  TS(aida), CORR: " << my_unp_data.GetTmStp() << ",  "<< my_unp_data.GetCorrScaler(); //<<",  "<< my_unp_data.GetCorrScaler()<<std::endl;
-	  printf("  INFO 0x%lX \n", my_unp_data.GetInfoField());
-	}
-
+      if(b_debug){
+	std::cout << " OFFFFFFFFFFFFFFFFFFFFF: " << offset<<std::endl;
+	std::cout << "MODULE:"<<int(my_unp_data.GetFee64Id())<<"::  TS(aida), CORR: " << my_unp_data.GetTmStp() << ",  "<< my_unp_data.GetCorrScaler(); //<<",  "<< my_unp_data.GetCorrScaler()<<std::endl;
+	printf("  INFO 0x%lX \n", my_unp_data.GetInfoField());
       }
+      //     } //check module 13, 14 or 16
 
       SetInfoCode(my_unp_data.GetInfoCode());
-      SetBPushData(true);
-      SetBFillTree(true);
+      //FS: ony adc data makes it forward... SetBPushData(true); //do we want to send data from corr scaler?
+      // SetBFillTree(true);
     }
   }
 
@@ -87,20 +85,21 @@ void Calibrator::Process(Unpacker & my_unp_data){
     SetAdcData(my_unp_data.GetAdcData());
     SetAdcRange(my_unp_data.GetAdcRange()) ;
 
-    if(SetGeometry()){ //calculates DSSD, side, strip, ...
+    //FS    if(SetGeometry()){ //calculates DSSD, side, strip, ...
+    SetGeometry();
 
-      CalibrateAdc(); //energy... range...
-
-      //time discriminator set after calculation of time-stamp
-      if( GetBEnabled() ) SetBPushData(true); //if not a dissabled chanel (e.g. noisy ch)
-
-      SetBFillTree(true);
-    }
+    //time discriminator set after calculation of time-stamp
+    //this should be: if above threshold! In CalibrateAdc()
+    //FS: in Unpacker if( GetBEnabled() ) SetBPushData(true); //if not a dissabled chanel (e.g. noisy ch)
+    //FS: only push adc_data above software threshold
+    if(CalibrateAdc()) SetBPushData(true); 
+    // SetBFillTree(true);
+    //FS }
   }
 
 
   //if we're interested in this event
-  if(GetBPushData() || GetBFillTree() ){
+  if(GetBPushData() || GetBRootTree() ){
 
     //timing only if it makes sense...
     SetTimeAida(my_unp_data.GetTmStp());
@@ -303,6 +302,11 @@ void Calibrator::LoadParameters(char * file_name){
 	    if(IsValidChannel(module, 0)){
 	      par_count++;
 	      map_side[module]= int(data);
+	      //FS: also get the polarity form the side
+	      // side= 0 => polarity= 1
+	      // side= 1 => polarity= -1
+	      if(map_side[module]==0) adc_polarity[module]= 1;
+	      else if(map_side[module]==1) adc_polarity[module]= -1;
 	    }
 	  }
 	  else if(par_name=="map_strip"){
@@ -326,6 +330,7 @@ void Calibrator::LoadParameters(char * file_name){
 	      adc_gain_highE[module]= data;
 	    }
 	  }
+	  /********* FS: b_ch_enabled moved to Unpacker *******
 	  else if(par_name=="b_ch_enabled"){
 	    module= x; channel= y;
 	    data= z;
@@ -334,6 +339,7 @@ void Calibrator::LoadParameters(char * file_name){
 	      b_ch_enabled[module][channel]= int( data );
 	    }
 	  }
+	  *******************************************/
 	  else if(par_name=="adc_offset"){
 	    module= x; channel= y;
 	    data= z;
@@ -348,6 +354,14 @@ void Calibrator::LoadParameters(char * file_name){
 	    if(IsValidChannel(module, channel)){
 	      par_count++;
 	      adc_gain[module][channel]= data;
+	    }
+	  }
+	  else if(par_name=="energy_threshold"){
+	    module= x; channel= y;
+	    data= z;
+	    if(IsValidChannel(module, channel)){
+	      par_count++;
+	      energy_threshold[module][channel]= data;
 	    }
 	  }
 	  else if(par_name=="disc_time_window"){
@@ -399,7 +413,7 @@ void Calibrator::ResetData(){
 
   
   b_push_data = false;
-  b_fill_tree = false;
+  b_fill_tree = true;
 
   //reset this?
   b_enabled= false;
@@ -445,7 +459,8 @@ void Calibrator::Write(){
   }
 }
 
-bool Calibrator::SetGeometry(){
+//FS:fast! bool Calibrator::SetGeometry(){
+void Calibrator::SetGeometry(){
 
 
     cal_data.dssd = map_dssd[GetModule()];
@@ -463,26 +478,32 @@ bool Calibrator::SetGeometry(){
 
     cal_data.side = map_side[GetModule()];
 
-    return true;
+    //FS return true;
 
     //return false;
 }
 
-void Calibrator::CalibrateAdc(){
+bool Calibrator::CalibrateAdc(){
 
   if(GetAdcRange() == 0){ //decay
 
-    double value;
-    value = GetAdcData() - common::ADC_ZERO - adc_offset[GetModule()][GetChannel()];
-    SetAdcEnergy(adc_polarity[GetModule()] * adc_gain[GetModule()][GetChannel()] * value);
+    double x, e;
+    x = GetAdcData() - common::ADC_ZERO - adc_offset[GetModule()][GetChannel()];
+    e = adc_polarity[GetModule()] * adc_gain[GetModule()][GetChannel()] * x;
+    SetAdcEnergy(e); //adc_polarity[GetModule()] * adc_gain[GetModule()][GetChannel()] * value);
+    if(e >= energy_threshold[GetModule()][GetChannel()]) return true;
+    else return false;
   }
   else if(GetAdcRange() == 1){
     double value;
     value = GetAdcData() - common::ADC_ZERO;
     SetAdcEnergy(adc_polarity[GetModule()] * adc_gain_highE[GetModule()] * value);
+    return true;
   }
-  else SetAdcEnergy(-99999);
-
+  else{
+    SetAdcEnergy(-9999);
+    return false;
+  }
 }
 
  
@@ -519,9 +540,11 @@ void Calibrator::SetBRootTree(bool flag){
   else b_root_tree= false;
 }
 
+/****** FS: unpacker******
 void Calibrator::SetBEnabled(bool flag){
   b_enabled= flag;
 }
+************************/
 
 void Calibrator::SetBValidCh(bool flag){
   b_valid_ch= flag;
@@ -626,7 +649,7 @@ bool Calibrator::GetBPushData(){ return b_push_data; }
 bool Calibrator::GetBFillTree(){ return b_fill_tree; }
 bool Calibrator::GetBRootTree(){ return b_root_tree; }
 
-bool Calibrator::GetBEnabled(){ return b_enabled; }
+//FS bool Calibrator::GetBEnabled(){ return b_enabled; }
 bool Calibrator::GetBValidCh(){ return b_valid_ch; }
 bool Calibrator::GetBCorrStatus(){ return b_corr_status; }
 
@@ -676,7 +699,7 @@ Calibrator::Calibrator(){
   b_histograms = false;
 
   b_push_data = false;
-  b_fill_tree = false;
+  b_fill_tree = true;
 
   for(int i=0;i<common::N_FEE64;i++){
     for(int j=0;j<common::N_CHANNEL;j++){
@@ -685,53 +708,6 @@ Calibrator::Calibrator(){
   }
   tm_stp_corr_offset=0;
  
-
-  //...Parameters....
-  //by default, all channels enabled
-  for(int i=0;i<common::N_FEE64;i++){
-    for(int j=0;j<common::N_CHANNEL;j++){
-      b_ch_enabled[i][j]= true;
-    }
-    //    b_mod_enabled[i]= true;
-  }
-
-  /****************
-  //file name-> to load parameters
-  b_mod_enabled[0]= false;
-  b_mod_enabled[1]= true;
-  b_mod_enabled[2]= true;
-  b_mod_enabled[3]= true;
-  b_mod_enabled[4]= true;
-  b_mod_enabled[5]= false;
-  b_mod_enabled[6]= true;
-  b_mod_enabled[7]= true;
-  b_mod_enabled[8]= true;
-  b_mod_enabled[9]= false;
-  b_mod_enabled[10]= true;
-  b_mod_enabled[11]= true;
-  b_mod_enabled[12]= false;
-  b_mod_enabled[13]= true;
-  b_mod_enabled[14]= true;
-  b_mod_enabled[15]= false;
-  b_mod_enabled[16]= true;
-  b_mod_enabled[17]= false;
-  b_mod_enabled[18]= false;
-  b_mod_enabled[19]= false;
-  b_mod_enabled[20]= false;
-  b_mod_enabled[21]= false;
-  b_mod_enabled[22]= false;
-  b_mod_enabled[23]= false;
-  b_mod_enabled[24]= false;
-  b_mod_enabled[25]= false;
-  b_mod_enabled[26]= false;
-  b_mod_enabled[27]= false;
-  b_mod_enabled[28]= false;
-  b_mod_enabled[29]= false;
-  b_mod_enabled[30]= true;
-  b_mod_enabled[31]= false;
-  b_mod_enabled[32]= false;
-  ***************/
-  
 
 
   //simplest possible....
@@ -746,8 +722,9 @@ Calibrator::Calibrator(){
     for(int j=0;j<common::N_CHANNEL;j++){
       adc_offset[i][j]= 0;
       adc_gain[i][j]= 0.7; // keV/ch
+      energy_threshold[i][j]= 100; // 100 keV as a nominal threshold
     }
-    if( (i%4)<2 ) adc_polarity[i]= 1;
+    if( map_side[i]==0 ) adc_polarity[i]= 1;
     else adc_polarity[i]= -1;
     adc_gain_highE[i]= 0.7; // MeV/ch
   }

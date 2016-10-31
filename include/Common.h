@@ -8,7 +8,7 @@ namespace common{
   const int N_CHANNEL  = 64; //# channels per FEE64 module (will not change! so hard coded in some parts of code)
 
   //modules in AIDA setup
-  const int N_FEE64 = 24;
+  const int N_FEE64 = 24+1; //numbering of AIDA Fee64 modules in raw data begins from 1
   //number of DSSD in detector stack
   const int N_DSSD = 6;
   
@@ -38,6 +38,28 @@ namespace common{
 
   };
 
+
+  struct analysis_data_struct{
+    //    ULong64_t t;
+    //ULong64_t t_fast;
+    unsigned long long t;
+    unsigned long long t_fast;
+
+    double e;
+    double e_x;
+    double e_y;
+    double x;
+    double y;
+    double z;
+    int n;
+    int n_x;
+    int n_y;
+    int n_z;
+    unsigned char type;
+  };
+
+
+  /****/
   struct aida_event{
     unsigned long long t;
     unsigned long long t_fast;
@@ -53,7 +75,25 @@ namespace common{
     //  int nz;
     unsigned char type;
   };
+  /*****/
 
+  /*** FS: for debug **********
+  struct aida_event{
+    unsigned long long t;
+    unsigned long long t_fast;
+    int e;
+    int e_x;
+    int e_y;
+    int x;
+    int y;
+    int z;
+    //  int n;
+    //  int nx;
+    //  int ny;
+    //  int nz;
+    unsigned char type;
+  };
+  ***************/
 }
 
 #endif
