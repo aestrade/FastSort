@@ -7,10 +7,26 @@
 #include <string>
 
 
+/**************** FS ************
 const unsigned char order[64]={62, 63, 59, 60, 61, 56, 57, 58, 52, 53, 54, 55, 49, 50, 51, 45,
 			       46, 47, 48, 42, 43, 44, 38, 39, 40, 41, 35, 36, 37, 31, 32, 33,
 			       34, 28, 29, 30, 24, 25, 26, 27, 21, 22, 23, 17, 18, 19, 20, 14,
 			       15, 16, 10, 11, 12,  7,  3,  0,  8,  4,  1,  9,  5,  2, 13,  6};
+
+const unsigned char order[64]={1, 0, 4, 3, 2, 7, 6, 5, 11, 10, 9, 8, 14, 13, 12, 18,
+			       17, 16, 15, 21, 20, 19, 25, 24, 23, 22, 28, 27, 26, 32, 31, 30,
+			       29, 35, 34, 33, 39, 38, 37, 36, 42, 41, 40, 46, 45, 44, 43, 49,
+			       48, 47, 62, 52, 51, 50, 59, 56, 53, 63, 60, 57, 54, 61, 58, 55};
+********************/
+
+
+// NEW order array (inverse indexes)
+const unsigned char order[64]={1, 0, 4, 3, 2, 7, 6, 5, 11, 10, 9, 8, 14, 13, 12, 18, 
+			       17, 16, 15, 21, 20, 19, 25, 24, 23, 22, 28, 27, 26, 32, 31, 30, 
+			       29, 35, 34, 33, 39, 38, 37, 36, 42, 41, 40, 46, 45, 44, 43, 49, 
+			       48, 47, 53, 52, 51, 56, 60, 63, 55, 59, 62, 54, 58, 61, 50, 57}; 
+
+
 
 
 void Calibrator::Close(){
@@ -467,11 +483,11 @@ void Calibrator::SetGeometry(){
 
     // higher number channels for strips at center of detector (FEE for each half)
     if(map_strip[GetModule()] == 1){
-      // cal_data.strip = 63 - OrderChannel( GetChannel() );
-      cal_data.strip = OrderChannel( GetChannel() );
+      //FS     cal_data.strip = OrderChannel( GetChannel() );
+     cal_data.strip = 63 - OrderChannel( GetChannel() );
     } else if(map_strip[GetModule()]== 2){
-      //      cal_data.strip = 64 + OrderChannel( GetChannel() ); 
-      cal_data.strip = 127 -  OrderChannel( GetChannel() ); 
+      //FS      cal_data.strip = 127 -  OrderChannel( GetChannel() ); 
+      cal_data.strip = 64 +  OrderChannel( GetChannel() ); 
     } else {
       cal_data.strip = -1;
     }
@@ -486,18 +502,22 @@ void Calibrator::SetGeometry(){
 bool Calibrator::CalibrateAdc(){
 
   if(GetAdcRange() == 0){ //decay
+    int x;
+    double e;
 
-    double x, e;
-    x = GetAdcData() - common::ADC_ZERO - adc_offset[GetModule()][GetChannel()];
-    e = adc_polarity[GetModule()] * adc_gain[GetModule()][GetChannel()] * x;
+    //  x = GetAdcData() - common::ADC_ZERO - adc_offset[GetModule()][GetChannel()];
+    //  e = adc_polarity[GetModule()] * adc_gain[GetModule()][GetChannel()] * x;
+    x = adc_polarity[GetModule()] * (GetAdcData() - common::ADC_ZERO); //
+    e = adc_gain[GetModule()][GetChannel()] * ( x + adc_offset[GetModule()][GetChannel()] );
+
     SetAdcEnergy(e); //adc_polarity[GetModule()] * adc_gain[GetModule()][GetChannel()] * value);
     if(e >= energy_threshold[GetModule()][GetChannel()]) return true;
     else return false;
   }
   else if(GetAdcRange() == 1){
-    double value;
-    value = GetAdcData() - common::ADC_ZERO;
-    SetAdcEnergy(adc_polarity[GetModule()] * adc_gain_highE[GetModule()] * value);
+    int x;
+    x = adc_polarity[GetModule()] * (GetAdcData() - common::ADC_ZERO );
+    SetAdcEnergy( adc_gain_highE[GetModule()] * x );
     return true;
   }
   else{
@@ -721,7 +741,7 @@ Calibrator::Calibrator(){
   for(int i=0;i<common::N_FEE64;i++){
     for(int j=0;j<common::N_CHANNEL;j++){
       adc_offset[i][j]= 0;
-      adc_gain[i][j]= 0.7; // keV/ch
+      adc_gain[i][j]= 0.61035; // keV/ch [Phong's cal_table_v2.txt]
       energy_threshold[i][j]= 100; // 100 keV as a nominal threshold
     }
     if( map_side[i]==0 ) adc_polarity[i]= 1;
